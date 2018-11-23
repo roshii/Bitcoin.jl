@@ -12,13 +12,13 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+    along with Bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-module Bitcoin
-
-using SHA, Ripemd
-
-include("ecc.jl")
-
+@testset "Helper Functions Test" begin
+    @testset "encodebase58checksum" begin
+        raw = hex2bytes("005dedfbf9ea599dd4e3ca6a80b333c472fd0b3f69")
+        want = "19ZewH8Kk1PDbSNdJ97FP4EiCjTRaZMZQA"
+        @test encodebase58checksum(raw) == want
+    end
 end

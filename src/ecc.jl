@@ -17,8 +17,8 @@
 
 import Base.+, Base.-, Base.*, Base.^, Base./, Base.inv, Base.==
 import Base.show
-export FieldElement, Point, S256Element, S256Point, Infinity
-export infield, iselliptic, secpubkey, address, encodebase58checksum, encodebase58
+export FieldElement, Point, S256Element, S256Point, Infinity, Signature, PrivateKey
+export infield, iselliptic, secpubkey, address, encodebase58checksum, encodebase58, verify, pksign
 export +, -, *, ^, /, ==, show
 export ∞, G, N
 
@@ -193,6 +193,18 @@ function *(λ::Integer,𝑃::Point)
 end
 
 
+struct Signature
+    𝑟::BigInt
+    𝑠::BigInt
+    Signature(𝑟, 𝑠) = new(𝑟, 𝑠)
+end
+
+# Formats Signature as (r, s) in hexadecimal format
+function show(io::IO, z::Signature)
+    print(io, "scep256k1 signature(𝑟, 𝑠):\n", string(z.𝑟, base = 16), ",\n", string(z.𝑠, base = 16))
+end
+
+
 # scep256k1 constants
 A = 0
 B = 7
@@ -238,7 +250,7 @@ function show(io::IO, z::S256Point)
     else
         x, y = z.𝑥, z.𝑦
     end
-    print(io, "scep256k1 Point(", string(x, base = 16), ",\n", string(y, base = 16),")")
+    print(io, "scep256k1 Point(𝑥,𝑦):\n", string(x, base = 16), ",\n", string(y, base = 16))
 end
 
 # Compares two S256Point, returns true if coordinates are equal
@@ -273,21 +285,46 @@ function secpubkey(P::T, compressed::Bool=true) where {T<:S256Point}
 end
 
 # Returns the Base58 public address
-# address(x::S256Point, compressed::Bool=true, testnet::Bool=false) = ""
 function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S256Point}
     s = secpubkey(P, compressed)
-    # hash160 the sec
     h160 = ripemd160(sha256(s))
-    # raw is hash 160 prepended w/ b'\x00' for mainnet, b'\x6f' for testnet
     if testnet
         prefix = 0x6f
     else
         prefix = 0x00
     end
-    # return the encode_base58_checksum of the prefix and h160
     result = pushfirst!(h160, prefix)
     return encodebase58checksum(result)
 end
 
+
+# Returns true if sig is a valid signature for z given public key pub, false if not
+function verify(𝑃::AbstractPoint,𝑧::Integer,sig::Signature)
+    𝑠⁻¹ = powermod(sig.𝑠, N - 2, N)
+    𝑢 = mod(𝑧 * 𝑠⁻¹, N)
+    𝑣 = mod(sig.𝑟 * 𝑠⁻¹, N)
+    𝑅 = 𝑢 * G + 𝑣 * 𝑃
+    return 𝑅.𝑥.𝑛 == sig.𝑟
+end
+
 G = S256Point(big"0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
               big"0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
+
+
+struct PrivateKey
+    𝑒::Integer
+    𝑃::AbstractPoint
+    PrivateKey(𝑒) = new(𝑒, 𝑒 * G)
+end
+
+# Returns a Signature for a given PrivateKey pk and data 𝑧
+function pksign(pk::PrivateKey, 𝑧::Integer)
+    𝑘 = rand(big.(0:N))
+    𝑟 = (𝑘 * G).𝑥.𝑛
+    𝑘⁻¹ = powermod(𝑘, N - 2, N)
+    𝑠 = mod((𝑧 + 𝑟 * pk.𝑒) * 𝑘⁻¹, N)
+    if 𝑠 > N / 2
+        𝑠 = N - 𝑠
+    end
+    return Signature(𝑟, 𝑠)
+end

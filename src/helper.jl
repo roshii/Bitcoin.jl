@@ -18,7 +18,6 @@
 BASE58_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 function encodebase58(s::Array{UInt8,1})
-    # determine how many 0 bytes (b'\x00') s starts with
     prefix = []
     for c in s
         if c == 0
@@ -27,8 +26,6 @@ function encodebase58(s::Array{UInt8,1})
             break
         end
     end
-    # prefix = UInt8(zerobytecount)
-    # convert from binary to hex, then hex to integer
     num = parse(BigInt, bytes2hex(s), base=16)
     result = []
     while num > 0
@@ -50,10 +47,7 @@ end
 
 # Takes bytes and turns it into base58 encoding with checksum
 function encodebase58checksum(h160::Array{UInt8,1})
-    # checksum is the first 4 bytes of the hash256
     checksum = sha256(sha256(h160))[1:4]
-    # encode_base58 on the raw and the checksum
     base58bytes = encodebase58(cat(h160, checksum; dims=1))
-    # turn to string with base58.decode('ascii')
     return bytestobase58(base58bytes)
 end

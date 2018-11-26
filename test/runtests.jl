@@ -22,6 +22,3 @@ tests = ["infinitytest", "helpertest", "ecctest"]
 for t ∈ tests
   include("$(t).jl")
 end
-
-# 19ZewH8Kk1PDbSNdJ97FP4EiCjTRcJtV7o
-# 19ZewH8Kk1PDbSNdJ97FP4EiCjTRaZMZQA

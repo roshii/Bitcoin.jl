@@ -18,7 +18,7 @@
 import Base.+, Base.-, Base.*, Base.^, Base./, Base.inv, Base.==
 import Base.show
 export FieldElement, Point, S256Element, S256Point, Infinity, Signature, PrivateKey
-export infield, iselliptic, secpubkey, address, encodebase58checksum, encodebase58, verify, pksign
+export infield, iselliptic, secpubkey, address, encodebase58checksum, encodebase58, verify, pksign, derparse
 export +, -, *, ^, /, ==, show
 export ∞, G, N
 
@@ -202,6 +202,43 @@ end
 # Formats Signature as (r, s) in hexadecimal format
 function show(io::IO, z::Signature)
     print(io, "scep256k1 signature(𝑟, 𝑠):\n", string(z.𝑟, base = 16), ",\n", string(z.𝑠, base = 16))
+end
+
+==(x::Signature, y::Signature) = x.𝑟 == y.𝑟 && x.𝑠 == y.𝑠
+
+# Returns a Signature() for a given signature in DER format
+function derparse(signature_bin::AbstractArray{UInt8})
+    s = IOBuffer(signature_bin)
+    bytes = UInt8[]
+    readbytes!(s, bytes, 1)
+    if bytes[1] != 0x30
+        throw(DomainError("Bad Signature"))
+    end
+    readbytes!(s, bytes, 1)
+    if bytes[1] + 2 != length(signature_bin)
+        throw(DomainError("Bad Signature Length"))
+    end
+    readbytes!(s, bytes, 1)
+    if bytes[1] != 0x02
+        throw(DomainError("Bad Signature"))
+    end
+    readbytes!(s, bytes, 1)
+    rlength = Int(bytes[1])
+    readbytes!(s, bytes, rlength)
+    r = bytes2hex(bytes)
+    readbytes!(s, bytes, 1)
+    if bytes[1] != 0x02
+        throw(DomainError("Bad Signature"))
+    end
+    readbytes!(s, bytes, 1)
+    slength = Int(bytes[1])
+    readbytes!(s, bytes, slength)
+    s = bytes2hex(bytes)
+    if length(signature_bin) != 6 + rlength + slength
+        throw(DomainError("Signature too long"))
+    end
+    return Signature(parse(BigInt, r, base=16),
+                     parse(BigInt, s, base=16))
 end
 
 

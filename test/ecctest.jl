@@ -244,6 +244,16 @@
         end
     end
 
+
+    @testset "Signature Test" begin
+        @testset "derparse" begin
+            der = hex2bytes("304402201f62993ee03fca342fcb45929993fa6ee885e00ddad8de154f268d98f083991402201e1ca12ad140c04e0e022c38f7ce31da426b8009d02832f0b44f39a6b178b7a1")
+            sig = Signature(parse(BigInt, "1f62993ee03fca342fcb45929993fa6ee885e00ddad8de154f268d98f0839914", base=16),
+                            parse(BigInt, "1e1ca12ad140c04e0e022c38f7ce31da426b8009d02832f0b44f39a6b178b7a1", base=16))
+            @test derparse(der) == sig
+        end
+    end
+
     @testset "Private Key Test" begin
         pk = PrivateKey(rand(big.(0:big(2)^256)))
         𝑧 = rand(big.(0:big(2)^256))

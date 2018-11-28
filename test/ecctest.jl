@@ -246,11 +246,23 @@
 
 
     @testset "Signature Test" begin
-        @testset "derparse" begin
+        @testset "der2sig" begin
             der = hex2bytes("304402201f62993ee03fca342fcb45929993fa6ee885e00ddad8de154f268d98f083991402201e1ca12ad140c04e0e022c38f7ce31da426b8009d02832f0b44f39a6b178b7a1")
             sig = Signature(parse(BigInt, "1f62993ee03fca342fcb45929993fa6ee885e00ddad8de154f268d98f0839914", base=16),
                             parse(BigInt, "1e1ca12ad140c04e0e022c38f7ce31da426b8009d02832f0b44f39a6b178b7a1", base=16))
-            @test derparse(der) == sig
+            @test der2sig(der) == sig
+        end
+        @testset "sig2der" begin
+            testcases = (
+                (1, 2),
+                (rand(big.(0:big(2)^256)), rand(big.(0:big(2)^255))),
+                (rand(big.(0:big(2)^256)), rand(big.(0:big(2)^255))))
+            for x in testcases
+                sig = Signature(x[1], x[2])
+                der = sig2der(sig)
+                sig2 = der2sig(der)
+                @test sig2 == sig
+            end
         end
     end
 

@@ -18,7 +18,8 @@
 import Base.+, Base.-, Base.*, Base.^, Base./, Base.inv, Base.==
 import Base.show
 export FieldElement, Point, S256Element, S256Point, Infinity, Signature, PrivateKey
-export infield, iselliptic, secpubkey, address, encodebase58checksum, encodebase58, verify, pksign, derparse
+export int2bytes, bytes2int, encodebase58checksum, encodebase58
+export infield, iselliptic, secpubkey, address, verify, pksign, sig2der, der2sig
 export +, -, *, ^, /, ==, show
 export ∞, G, N
 
@@ -206,8 +207,27 @@ end
 
 ==(x::Signature, y::Signature) = x.𝑟 == y.𝑟 && x.𝑠 == y.𝑠
 
+# Returns a DER signature from a given Signature()
+# Investigate: 0x00 was added if high bit is found on r of s in python implementation
+# but seem to break der2sig in Julia
+function sig2der(x::Signature)
+    rbin = int2bytes(x.𝑟)
+    # if rbin has a high bit, add a 00
+    # if rbin[1] >= 128
+    #     rbin = pushfirst!(rbin, 0x00)
+    # end
+    result = cat([0x02], int2bytes(length(rbin)), rbin; dims=1)
+    sbin = int2bytes(x.𝑠)
+    # if sbin has a high bit, add a 00
+    # if sbin[1] >= 128
+    #     sbin = pushfirst!(sbin, 0x00)
+    # end
+    result = cat(result, [0x02], int2bytes(length(rbin)), sbin; dims=1)
+    return cat([0x30], int2bytes(length(result)), result; dims=1)
+end
+
 # Returns a Signature() for a given signature in DER format
-function derparse(signature_bin::AbstractArray{UInt8})
+function der2sig(signature_bin::AbstractArray{UInt8})
     s = IOBuffer(signature_bin)
     bytes = UInt8[]
     readbytes!(s, bytes, 1)

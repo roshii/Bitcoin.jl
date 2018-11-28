@@ -51,3 +51,16 @@ function encodebase58checksum(h160::Array{UInt8,1})
     base58bytes = encodebase58(cat(h160, checksum; dims=1))
     return bytestobase58(base58bytes)
 end
+
+function int2bytes(x::Integer)
+    hex = string(x, base=16)
+    if mod(length(hex), 2) != 0
+        hex = string("0", hex)
+    end
+    return hex2bytes(hex)
+end
+
+function bytes2int(x::Array{UInt8,1})
+    hex = bytes2hex(x)
+    return parse(BigInt, hex, base=16)
+end

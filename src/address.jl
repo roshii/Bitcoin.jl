@@ -12,15 +12,22 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+    along with Bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-module Bitcoin
+export address
 
-using ECC
-using SHA: sha256
-using Ripemd: ripemd160
+include("base58.jl")
 
-include("address.jl")
-
-end # module
+# Returns the Base58 public address
+function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S256Point}
+    s = point2sec(P, compressed)
+    h160 = ripemd160(sha256(s))
+    if testnet
+        prefix = 0x6f
+    else
+        prefix = 0x00
+    end
+    result = pushfirst!(h160, prefix)
+    return encodebase58checksum(result)
+end

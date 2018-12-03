@@ -15,10 +15,10 @@
     along with Bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-using Test, Bitcoin
+using Test, Bitcoin, ECC
 
-tests = ["infinitytest", "helpertest", "ecctest"]
+tests = ["base58", "address"]
 
 for t ∈ tests
-  include("$(t).jl")
+  include("$(t)test.jl")
 end

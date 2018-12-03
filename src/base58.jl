@@ -15,6 +15,8 @@
     along with bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+export encodebase58checksum
+
 BASE58_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 function encodebase58(s::Array{UInt8,1})

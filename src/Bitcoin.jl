@@ -20,6 +20,7 @@ module Bitcoin
 using ECC
 using SHA: sha256
 using Ripemd: ripemd160
+export address
 
 include("address.jl")
 

@@ -15,11 +15,15 @@
     along with Bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-export address
-
 include("base58.jl")
 
-# Returns the Base58 public address
+"""
+    adress(P::ECC.S256Point, compressed::Bool, testnet::Bool) -> String
+
+Returns the Base58 Bitcoin address.
+Compressed is set to true if not provided.  
+Testnet is set to false by default.
+"""
 function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S256Point}
     s = point2sec(P, compressed)
     h160 = ripemd160(sha256(s))

@@ -34,3 +34,25 @@ function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S25
     result = pushfirst!(h160, prefix)
     return String(base58checkencode(result))
 end
+
+"""
+    wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false) -> String
+
+Returns a PrivateKey with WIF - Wallet Import Format
+Compressed is set to true if not provided.
+Testnet is set to false by default.
+"""
+function wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false)
+    secret_bytes = int2bytes(pk.𝑒)
+    if testnet
+        prefix = b"\xef"
+    else
+        prefix = b"\x80"
+    end
+    if compressed
+        suffix = b"\x01"
+    else
+        suffix = b""
+    end
+    return String(base58checkencode(cat(prefix, secret_bytes, suffix; dims=1)))
+end

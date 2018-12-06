@@ -1,3 +1,9 @@
+[[Base58]]
+deps = ["Base64", "SHA", "Test"]
+git-tree-sha1 = "928c15a6a41d2f4eec8e8cf2b911e2b31b78d71f"
+uuid = "a832ea1e-0ca7-55ca-a41a-6462721bb861"
+version = "0.2.0"
+
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
@@ -20,10 +26,9 @@ deps = ["LinearAlgebra", "Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[ECC]]
+deps = ["Test"]
 git-tree-sha1 = "d89a5f54b7cac1d310c29cb8623be6a9f520e857"
-repo-rev = "master"
-repo-url = "https://gitlab.com/braneproject/ecc.jl.git"
-uuid = "da8f3168-f3af-11e8-3bbf-539a9fd9f5f7"
+uuid = "a99b485a-c5c8-540e-ab00-7a7265134077"
 version = "0.1.3"
 
 [[InteractiveUtils]]

@@ -15,13 +15,12 @@
     along with Bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-include("base58.jl")
 
 """
     adress(P::ECC.S256Point, compressed::Bool, testnet::Bool) -> String
 
 Returns the Base58 Bitcoin address.
-Compressed is set to true if not provided.  
+Compressed is set to true if not provided.
 Testnet is set to false by default.
 """
 function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S256Point}
@@ -33,5 +32,5 @@ function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S25
         prefix = 0x00
     end
     result = pushfirst!(h160, prefix)
-    return encodebase58checksum(result)
+    return String(base58checkencode(result))
 end

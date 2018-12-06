@@ -17,7 +17,7 @@
 
 using Test, Bitcoin, ECC
 
-tests = ["base58", "address"]
+tests = ["address"]
 
 for t ∈ tests
   include("$(t)test.jl")

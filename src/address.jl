@@ -45,14 +45,14 @@ Testnet is set to false by default.
 function wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false)
     secret_bytes = int2bytes(pk.𝑒)
     if testnet
-        prefix = b"\xef"
+        prefix = 0xef
     else
-        prefix = b"\x80"
+        prefix = 0x80
     end
+    result = pushfirst!(secret_bytes, prefix)
     if compressed
-        suffix = b"\x01"
+        return String(base58checkencode(push!(result, 0x01)))
     else
-        suffix = b""
+        return String(base58checkencode(result))
     end
-    return String(base58checkencode(cat(prefix, secret_bytes, suffix; dims=1)))
 end

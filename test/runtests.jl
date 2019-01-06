@@ -1,4 +1,6 @@
 """
+    Copyright (C) 2018-2019 Simon Castano
+
     This file is part of Bitcoin.jl
 
     Bitcoin.jl is free software: you can redistribute it and/or modify
@@ -17,7 +19,7 @@
 
 using Test, Bitcoin, ECC
 
-tests = ["address"]
+tests = ["address", "op"]
 
 for t ∈ tests
   include("$(t)test.jl")

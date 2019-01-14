@@ -162,7 +162,9 @@
     @testset "Conditional control flow" begin
         @testset "op_nop" begin
             @test op_nop([UInt8[]]) == true
-            @test op_nop(stack) == true
+            @test op_nop([[0x64],
+                [0x86, 0x8f, 0xf9, 0x73, 0x0a, 0x3c, 0x0c, 0xb9],
+                [0xe2, 0xd6]]) == true
         end
         # TODO review those tests
         @testset "op_if" begin
@@ -223,7 +225,9 @@
         end
         @testset "op_return" begin
             @test op_return([UInt8[]]) == false
-            @test op_return(stack) == false
+            @test op_return([[0x64],
+                [0x86, 0x8f, 0xf9, 0x73, 0x0a, 0x3c, 0x0c, 0xb9],
+                [0xe2, 0xd6]]) == false
         end
     end
     @testset "Timelock operations" begin

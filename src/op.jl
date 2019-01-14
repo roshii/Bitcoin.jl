@@ -442,6 +442,23 @@ function op_size(stack::Array{Array{UInt8,1},1})
     return true
 end
 
+function op_equal(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = pop!(stack)
+    element2 = pop!(stack)
+    if element1 == element2
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_equalverify(stack::Array{Array{UInt8,1},1})
+    return op_equal(stack) && op_verify(stack)
+end
 
 # OP_CODE_FUNCTIONS = Dict([
 #     (0,  op_0),

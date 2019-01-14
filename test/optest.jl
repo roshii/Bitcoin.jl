@@ -386,6 +386,24 @@
         end
     end
     @testset "Binary arithmetic and conditionals" begin
+        @testset "op_equal" begin
+            stack = Array{UInt8,1}[]
+            @test op_equal(stack) == false
+            stack = [[0x01], [0x02], [0x03], [0x04]]
+            @test op_equal(stack) == true
+            @test stack == [[0x01], [0x02], []]
+            stack = [[0x01], [0x02], [0x03], [0x03]]
+            @test op_equal(stack) == true
+            @test stack == [[0x01], [0x02], [0x01]]
+        end
+        @testset "op_equalverify" begin
+            stack = Array{UInt8,1}[]
+            @test op_equalverify(stack) == false
+            stack = [[0x01], [0x02], [0x03], [0x04]]
+            @test op_equalverify(stack) == false
+            stack = [[0x01], [0x02], [0x03], [0x03]]
+            @test op_equalverify(stack) == true
+        end
     end
     @testset "Numeric operators" begin
     end

@@ -406,6 +406,169 @@
         end
     end
     @testset "Numeric operators" begin
+        empty = Array{UInt8,1}[]
+        stack = Array{UInt8,1}[[0x03]]
+        @testset "op_1add" begin
+            @test op_1add(empty) == false
+            @test op_1add(stack) == true
+            @test stack == [[0x04]]
+        end
+        @testset "op_1sub" begin
+            @test op_1sub(empty) == false
+            @test op_1sub(stack) == true
+            @test stack == [[0x03]]
+        end
+        @testset "op_negate" begin
+            @test op_negate(empty) == false
+            @test op_negate(stack) == true
+            @test stack == [[0x83]]
+        end
+        @testset "op_abs" begin
+            @test op_abs(empty) == false
+            @test op_abs(stack) == true
+            @test stack == [[0x03]]
+            @test op_abs(stack) == true
+            @test stack == [[0x03]]
+        end
+        @testset "op_not" begin
+            @test op_not(empty) == false
+            @test op_not(stack) == true
+            @test stack == [UInt8[]]
+            @test op_not(stack) == true
+            @test stack == [[0x01]]
+        end
+        @testset "op_0notequal" begin
+            @test op_0notequal(empty) == false
+            stack = [[0x1a]]
+            @test op_0notequal(stack) == true
+            @test stack == [[0x01]]
+            stack = [[0x00]]
+            @test op_0notequal(stack) == true
+            @test stack == [UInt8[]]
+        end
+        @testset "op_add" begin
+            @test op_add(empty) == false
+            stack = [[0x09], [0x02], [0x03]]
+            @test op_add(stack) == true
+            @test stack == [[0x09], [0x05]]
+        end
+        @testset "op_sub" begin
+            @test op_sub(empty) == false
+            @test op_sub(stack) == true
+            @test stack == [[0x04]]
+        end
+        @testset "op_booland" begin
+            @test op_booland(empty) == false
+            stack = [[0x00], [0x00]]
+            @test op_booland(stack) == true
+            @test stack == [UInt8[]]
+            stack = [[0x01], [0x00]]
+            @test op_booland(stack) == true
+            @test stack == [UInt8[]]
+            stack = [[0x00], [0x01]]
+            @test op_booland(stack) == true
+            @test stack == [UInt8[]]
+            stack = [[0x01], [0x01]]
+            @test op_booland(stack) == true
+            @test stack == [UInt8[0x01]]
+        end
+        @testset "op_boolor" begin
+            @test op_boolor(empty) == false
+            stack = [[0x00], [0x00]]
+            @test op_boolor(stack) == true
+            @test stack == [UInt8[]]
+            stack = [[0x00], [0x01]]
+            @test op_boolor(stack) == true
+            @test stack == [UInt8[0x01]]
+            stack = [[0x01], [0x00]]
+            @test op_boolor(stack) == true
+            @test stack == [UInt8[0x01]]
+            stack = [[0x01], [0x01]]
+            @test op_boolor(stack) == true
+            @test stack == [UInt8[0x01]]
+        end
+        @testset "op_numequal" begin
+            @test op_numequal(empty) == false
+            stack = [[0x01], [0x02], [0x00], [0x00]]
+            @test op_numequal(stack) == true
+            @test stack == [[0x01], [0x02], [0x01]]
+            @test op_numequal(stack) == true
+            @test stack == [[0x01], UInt8[]]
+        end
+        @testset "op_numequalverify" begin
+            @test op_numequalverify(empty) == false
+            stack = [[0x01], [0x02], [0x00], [0x00]]
+            @test op_numequalverify(stack) == true
+            @test stack == [[0x01], [0x02]]
+            @test op_numequalverify(stack) == false
+            @test stack == empty
+        end
+        @testset "op_numnotequal" begin
+            @test op_numnotequal(empty) == false
+            stack = [[0x01], [0x02], [0x03], [0x03]]
+            @test op_numnotequal(stack) == true
+            @test stack == [[0x01], [0x02], UInt8[]]
+            stack = [[0x01], [0x02], [0x03], [0x04]]
+            @test op_numnotequal(stack) == true
+            @test stack == [[0x01], [0x02], [0x01]]
+        end
+        @testset "op_lessthan" begin
+            @test op_lessthan(empty) == false
+            stack = [[0x01], [0x01], [0x03], [0x04]]
+            @test op_lessthan(stack) == true
+            @test stack == [[0x01], [0x01], [0x01]]
+            @test op_lessthan(stack) == true
+            @test stack == [[0x01], UInt8[]]
+        end
+        @testset "op_greaterthan" begin
+            @test op_greaterthan(empty) == false
+            stack = [[0x04], [0x01], [0x02], [0x01]]
+            @test op_greaterthan(stack) == true
+            @test stack == [[0x04], [0x01], [0x01]]
+            @test op_greaterthan(stack) == true
+            @test stack == [[0x04], UInt8[]]
+        end
+        @testset "op_lessthanorequal" begin
+            @test op_lessthanorequal(empty) == false
+            stack = [[0x01], [0x02], [0x04], [0x04]]
+            @test op_lessthanorequal(stack) == true
+            @test stack == [[0x01], [0x02], [0x01]]
+            @test op_lessthanorequal(stack) == true
+            @test stack == [[0x01], UInt8[]]
+        end
+        @testset "op_greaterthanorequal" begin
+            @test op_greaterthanorequal(empty) == false
+            stack = [[0x04], [0x00], [0x02], [0x02]]
+            @test op_greaterthanorequal(stack) == true
+            @test stack == [[0x04], [0x00], [0x01]]
+            @test op_greaterthanorequal(stack) == true
+            @test stack == [[0x04], UInt8[]]
+        end
+        @testset "op_min" begin
+            @test op_min(empty) == false
+            stack = [[0x01], [0x08], [0x03], [0x04]]
+            @test op_min(stack) == true
+            @test stack == [[0x01], [0x08], [0x03]]
+            @test op_min(stack) == true
+            @test stack == [[0x01], [0x03]]
+        end
+        @testset "op_max" begin
+            @test op_max(empty) == false
+            stack = [[0x01], [0x08], [0x03], [0x04]]
+            @test op_max(stack) == true
+            @test stack == [[0x01], [0x08], [0x04]]
+            @test op_max(stack) == true
+            @test stack == [[0x01], [0x08]]
+        end
+        @testset "op_within" begin
+            @test op_within(empty) == false
+            stack = [[0xa1], [0x02], [0x02], [0x04]]
+            @test op_within(stack) == true
+            @test stack == [[0xa1], [0x01]]
+            stack = [[0xa1], [0x08], [0x02], [0x04]]
+            @test op_within(stack) == true
+            @test stack == [[0xa1], UInt8[]]
+        end
     end
     @testset "Cryptographic and hashing operations" begin
     end

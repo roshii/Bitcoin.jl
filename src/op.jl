@@ -460,6 +460,249 @@ function op_equalverify(stack::Array{Array{UInt8,1},1})
     return op_equal(stack) && op_verify(stack)
 end
 
+function op_1add(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = decode_num(pop!(stack))
+    push!(stack, encode_num(element + 1))
+    return true
+end
+
+function op_1sub(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = decode_num(pop!(stack))
+    push!(stack, encode_num(element - 1))
+    return true
+end
+
+function op_negate(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = decode_num(pop!(stack))
+    push!(stack, encode_num(- element))
+    return true
+end
+
+function op_abs(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = decode_num(pop!(stack))
+    push!(stack, encode_num(abs(element)))
+    return true
+end
+
+function op_not(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = decode_num(pop!(stack))
+    if element == 0
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_0notequal(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = pop!(stack)
+    if decode_num((element)) == 0
+        push!(stack, encode_num(0))
+    else
+        push!(stack, encode_num(1))
+    end
+    return true
+end
+
+function op_add(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    push!(stack, encode_num(element2 + element1))
+    return true
+end
+
+function op_sub(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    push!(stack, encode_num(element2 - element1))
+    return true
+end
+
+function op_booland(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element1 == 1 && element2 == 1
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_boolor(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element1 == 1 || element2 == 1
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_numequal(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element1 == element2
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_numequalverify(stack::Array{Array{UInt8,1},1})
+    return op_numequal(stack) && op_verify(stack)
+end
+
+function op_numnotequal(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element1 != element2
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_lessthan(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element2 < element1
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_greaterthan(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element2 > element1
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_lessthanorequal(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element2 <= element1
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+function op_greaterthanorequal(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element2 >= element1
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+
+function op_min(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element1 < element2
+        push!(stack, encode_num(element1))
+    else
+        push!(stack, encode_num(element2))
+    end
+    return true
+end
+
+function op_max(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 2
+        return false
+    end
+    element1 = decode_num(pop!(stack))
+    element2 = decode_num(pop!(stack))
+    if element1 > element2
+        push!(stack, encode_num(element1))
+    else
+        push!(stack, encode_num(element2))
+    end
+    return true
+end
+
+function op_within(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 3
+        return false
+    end
+    maxlimit = decode_num(pop!(stack))
+    minlimit = decode_num(pop!(stack))
+    element = decode_num(pop!(stack))
+    if element >= minlimit && element < maxlimit
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+end
+
+
 # OP_CODE_FUNCTIONS = Dict([
 #     (0,  op_0),
 #     (79,  op_1negate),

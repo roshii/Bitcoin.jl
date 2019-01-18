@@ -231,6 +231,21 @@
         end
     end
     @testset "Timelock operations" begin
+        empty = Array{UInt8,1}[]
+        stack = Array{UInt8,1}[[0x03], [0x04]]
+        @testset "op_checklocktimeverify" begin
+            @test op_checklocktimeverify(stack, 1, 0xffffffff) == false
+            @test op_checklocktimeverify(empty, 100, 1) == false
+            push!(stack, [0x81])
+            @test op_checklocktimeverify(stack, 100, 1) == false
+            pop!(stack)
+            @test op_checklocktimeverify(stack, 500000001, 1) == false
+            @test op_checklocktimeverify(stack, 1, 1) == false
+            @test op_checklocktimeverify(stack, 100, 1) == true
+        end
+        # TODO
+        @testset "op_checksequenceverify" begin
+        end
     end
     @testset "Stack operations" begin
         @testset "op_toaltstack" begin

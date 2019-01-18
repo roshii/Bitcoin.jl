@@ -702,6 +702,97 @@ function op_within(stack::Array{Array{UInt8,1},1})
     return true
 end
 
+"""
+Return RIPEMD160 hash of top item
+"""
+function op_ripemd160(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = pop!(stack)
+    push!(stack, ripemd160(element))
+    return true
+end
+
+"""
+Return SHA1 hash of top item
+"""
+function op_sha1(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = pop!(stack)
+    push!(stack, sha1(element))
+    return true
+end
+
+"""
+Return SHA256 hash of top item
+"""
+function op_sha256(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = pop!(stack)
+    push!(stack, sha256(element))
+    return true
+end
+
+"""
+Return RIPEMD160(SHA256(x)) hash of top item
+"""
+function op_hash160(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = pop!(stack)
+    push!(stack, ripemd160(sha256(element)))
+    return true
+end
+
+"""
+Return SHA256(SHA256(x)) hash of top item
+"""
+function op_hash256(stack::Array{Array{UInt8,1},1})
+    if length(stack) < 1
+        return false
+    end
+    element = pop!(stack)
+    push!(stack, sha256(sha256(element)))
+    return true
+end
+
+"""
+Pop a public key an signature and validate the signature for the transaction's
+hashed data, return TRUE if matching
+"""
+# TODO
+function op_checksig(stack::Array{Array{UInt8,1},1}, z::Integer)
+    error("not implemented")
+end
+
+"""
+Same as CHECKSIG, then OP_VERIFY to halt if not TRUE
+"""
+function op_checksigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
+    return op_checksig(stack, z) && op_verify(stack)
+end
+
+"""
+Run CHECKSIG for each pair of signature and public key provided. All must match.
+Bug in implementation pops an extra value, prefix with OP_NOP as workaround
+"""
+# TODO
+function op_checkmultisig(stack::Array{Array{UInt8,1},1}, z::Integer)
+    error("not implemented")
+end
+
+"""
+Same as CHECKMULTISIG, then OP_VERIFY to halt if not TRUE
+"""
+function op_checkmultisigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
+    return op_checkmultisig(stack, z) && op_verify(stack)
+end
 
 # OP_CODE_FUNCTIONS = Dict([
 #     (0,  op_0),

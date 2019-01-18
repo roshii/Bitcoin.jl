@@ -20,19 +20,23 @@
 """
 read_varint reads a variable integer from a stream
 """
- function read_varint(s::Base.CodeUnits)
-     i = s.read(1)[0]
-     if i == 0xfd
+ function read_varint(s::Array{Array{UInt8,1},1})
+     s, i = IOBuffer(s[1]), UInt8[]
+     readbytes!(s, i, 1)
+     if i == [0xfd]
          # 0xfd means the next two bytes are the number
-         return reinterpret(UInt16, s.read(2))
-     elseif i == 0xfe
+         readbytes!(s, i, 2)
+         return reinterpret(Int16, i)[1]
+     elseif i == [0xfe]
          # 0xfe means the next four bytes are the number
-         return reinterpret(UInt32, s.read(4))
-     elseif i == 0xff
+         readbytes!(s, i, 4)
+         return reinterpret(Int32, i)[1]
+     elseif i == [0xff]
          # 0xff means the next eight bytes are the number
-         return reinterpret(UInt64, s.read(8))
+         readbytes!(s, i, 8)
+         return reinterpret(Int64, i)[1]
      else
          # anything else is just the integer
-         return i
+         return reinterpret(Int8, i)[1]
      end
  end

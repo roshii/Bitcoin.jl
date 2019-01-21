@@ -73,3 +73,40 @@ function int2bytes(x::Integer, l::Integer=0)
     end
     return result[i:end]
 end
+
+function int2bytes(x::BigInt)
+    n_bytes_with_zeros = x.size * sizeof(Sys.WORD_SIZE)
+    uint8_ptr = convert(Ptr{UInt8}, x.d)
+    n_bytes_without_zeros = 1
+
+    if ENDIAN_BOM == 0x04030201
+        # the minimum should be 1, else the result array will be of
+        # length 0
+        for i in n_bytes_with_zeros:-1:1
+            if unsafe_load(uint8_ptr, i) != 0x00
+                n_bytes_without_zeros = i
+                break
+            end
+        end
+
+        result = Array{UInt8}(undef, n_bytes_without_zeros)
+
+        for i in 1:n_bytes_without_zeros
+            @inbounds result[n_bytes_without_zeros + 1 - i] = unsafe_load(uint8_ptr, i)
+        end
+    else
+        for i in 1:n_bytes_with_zeros
+            if unsafe_load(uint8_ptr, i) != 0x00
+                n_bytes_without_zeros = i
+                break
+            end
+        end
+
+        result = Array{UInt8}(undef, n_bytes_without_zeros)
+
+        for i in 1:n_bytes_without_zeros
+            @inbounds result[i] = unsafe_load(uint8_ptr, i)
+        end
+    end
+    return result
+end

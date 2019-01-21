@@ -72,28 +72,18 @@ function scriptparse(s::Script)
 end
 
 function rawserialize(s::Script)
-    # initialize what we'll send back
     result = UInt8[]
-    # go through each instruction
     for instruction in s.instructions
-        # if the instruction is an integer, it's an op code
         if typeof(instruction) == UInt8
-            # turn the instruction into a single byte integer using int_to_little_endian
             append!(result, instruction)
         else
-            # otherwise, this is an element
-            # get the length in bytes
             length_ = length(instruction)
-            # for large lengths, we have to use a pushdata op code
             if length_ < 0x4b
-                # turn the length into a single byte integer
                 append!(result, UInt8(length_))
             elseif length_ > 0x4b && length_ < 0x100
-                # 76 is pushdata1
                 append!(result, 0x4c)
                 append!(result, UInt8(length_))
             elseif length_ >= 0x100 && length_ <= 0x208
-                # 77 is pushdata2
                 append!(result, 0x4d)
                 result += int2bytes(length_, 2)
             else
@@ -106,10 +96,7 @@ function rawserialize(s::Script)
 end
 
 function scriptserialize(s::Script)
-    # get the raw serialization (no prepended length)
     result = rawserialize(s)
-    # get the length of the whole thing
     total = length(result)
-    # encode_varint the total length of the result and prepend
     return prepend!(result, encode_varint(total))
 end

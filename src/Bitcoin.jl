@@ -1,4 +1,6 @@
 """
+    Copyright (C) 2018-2019 Simon Castano
+
     This file is part of Bitcoin.jl
 
     Bitcoin.jl is free software: you can redistribute it and/or modify
@@ -23,6 +25,9 @@ using Ripemd: ripemd160
 using Base58: base58checkencode
 export address, wif
 
+include("helper.jl")
 include("address.jl")
+include("op.jl")
+include("script.jl")
 
 end # module

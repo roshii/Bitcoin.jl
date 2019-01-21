@@ -20,8 +20,8 @@
 """
 read_varint reads a variable integer from a stream
 """
- function read_varint(s::Array{Array{UInt8,1},1})
-     s, i = IOBuffer(s[1]), UInt8[]
+ function read_varint(s::Base.GenericIOBuffer{Array{UInt8,1}})
+     i = UInt8[]
      readbytes!(s, i, 1)
      if i == [0xfd]
          # 0xfd means the next two bytes are the number
@@ -40,3 +40,36 @@ read_varint reads a variable integer from a stream
          return reinterpret(Int8, i)[1]
      end
  end
+
+"""
+Encodes an integer as a varint
+"""
+ function encode_varint(n::Integer)
+    if n < 0xfd
+        return [UInt8(n)]
+    elseif n < 0x10000
+        return prepend!(int2bytes(n, 2), [0xfd])
+    elseif n < 0x100000000
+        return prepend!(int2bytes(n, 4), [0xfd])
+    elseif n < 0x10000000000000000
+        return prepend!(int2bytes(n, 8), [0xfd])
+    else
+        error("Integer, ", i, " is too large")
+    end
+ end
+
+import ECC.int2bytes
+
+ """
+Convert Integer to Array{UInt8}
+
+int2bytes(x::Integer) -> Array{UInt8,1}
+"""
+function int2bytes(x::Integer, l::Integer=0)
+    result = reinterpret(UInt8, [hton(x)])
+    i = findfirst(x -> x != 0x00, result)
+    if l != 0
+        i = length(result) - l + 1
+    end
+    return result[i:end]
+end

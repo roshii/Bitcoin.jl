@@ -23,11 +23,12 @@ using ECC
 using SHA: sha1, sha256
 using Ripemd: ripemd160
 using Base58: base58checkencode
-export address, wif
+export address, wif, txparse
 
 include("helper.jl")
 include("address.jl")
 include("op.jl")
 include("script.jl")
+include("tx.jl")
 
 end # module

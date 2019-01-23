@@ -110,3 +110,34 @@ function int2bytes(x::BigInt)
     end
     return result
 end
+
+import ECC.bytes2int
+
+"""
+Convert UInt8 Array to Integers
+
+bytes2big(x::Array{UInt8,1}) -> BigInt
+"""
+function bytes2int(x::Array{UInt8,1}, little_endian::Bool=false)
+    if length(x) > 8
+        bytes2big(x)
+    else
+        missing_zeros = div(Sys.WORD_SIZE, 8) -  length(x)
+        if missing_zeros > 0
+            if little_endian
+                for i in 1:missing_zeros
+                    push!(x,0x00)
+                end
+            else
+                for i in 1:missing_zeros
+                    pushfirst!(x,0x00)
+                end
+            end
+        end
+        if ENDIAN_BOM == 0x04030201 && little_endian
+        elseif ENDIAN_BOM == 0x04030201 || little_endian
+            reverse!(x)
+        end
+        return reinterpret(Int, x)[1]
+    end
+end

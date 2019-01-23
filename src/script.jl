@@ -19,18 +19,17 @@
 
 struct Script
     instructions::Array{Union{UInt8, Array{UInt8, 1}}, 1}
-    Script(instructions=nothing) = new(Array{UInt8, 1}[])
-    Script(instructions::Union{UInt8, Array{UInt8, 1}}) = new([instructions])
+    Script(instructions=nothing) = new(Array{Union{UInt8, Array{UInt8, 1}}, 1})
     Script(instructions) = new(instructions)
 end
 
 """
     scriptparse(s::Script) -> Script
 """
-function scriptparse(s::Script)
-    s = IOBuffer(s.instructions[1])
+function scriptparse(s::Base.GenericIOBuffer{Array{UInt8,1}})
+    # s = IOBuffer(s.instructions[1])
     length_ = read_varint(s)
-    instructions = Array{UInt8,1}[]
+    instructions = []
     count = 0
     while count < length_
         current = UInt8[]

@@ -141,3 +141,8 @@ function bytes2int(x::Array{UInt8,1}, little_endian::Bool=false)
         return reinterpret(Int, x)[1]
     end
 end
+
+function bytes2big(x::Array{UInt8,1})
+    hex = bytes2hex(x)
+    return parse(BigInt, hex, base=16)
+end

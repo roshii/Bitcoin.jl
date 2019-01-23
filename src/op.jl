@@ -766,9 +766,21 @@ end
 Pop a public key an signature and validate the signature for the transaction's
 hashed data, return TRUE if matching
 """
-# TODO
 function op_checksig(stack::Array{Array{UInt8,1},1}, z::Integer)
-    error("not implemented")
+    if length(stack) < 2
+        return false
+    end
+    sec_pubkey = pop!(stack)
+    der_signature = pop!(stack)[1:end-1]
+    point = sec2point(sec_pubkey)
+    sig = der2sig(der_signature)
+    if verify(point, z, sig)
+        push!(stack, encode_num(1))
+    else
+        push!(stack, encode_num(0))
+    end
+    return true
+
 end
 
 """
@@ -794,19 +806,6 @@ function op_checkmultisigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
     return op_checkmultisig(stack, z) && op_verify(stack)
 end
 
-"""
-Same as CHECKMULTISIG, then OP_VERIFY to halt if not TRUE
-"""
-function op_checkmultisigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
-    return op_checkmultisig(stack, z) && op_verify(stack)
-end
-
-"""
-Same as CHECKMULTISIG, then OP_VERIFY to halt if not TRUE
-"""
-function op_checkmultisigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
-    return op_checkmultisig(stack, z) && op_verify(stack)
-end
 
 """
 Marks transaction as invalid if the top stack item is greater than the

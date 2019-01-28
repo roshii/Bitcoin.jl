@@ -51,6 +51,21 @@ function txinparse(s::Base.GenericIOBuffer)
     return TxIn(prev_tx, prev_index, script_sig, sequence)
 end
 
+"""
+Returns the byte serialization of the transaction input
+"""
+function txinserialize(tx::TxIn)
+    # serialize prev_tx, little endian
+    result = tx.prev_tx
+    reverse!(result)
+    # serialize prev_index, 4 bytes, little endian
+    append!(result, int2bytes(tx.prev_index, 4, true))
+    # serialize the script_sig
+    append!(result, scriptserialize(tx.script_sig))
+    # serialize sequence, 4 bytes, little endian
+    append!(result, int2bytes(tx.sequence, 4, true))
+    return result
+end
 
 struct TxOut <: TxComponent
     amount::Integer
@@ -75,6 +90,16 @@ function txoutparse(s::Base.GenericIOBuffer)
     return TxOut(amount, script_pubkey)
 end
 
+"""
+Returns the byte serialization of the transaction output
+"""
+function txoutserialize(tx::TxOut)
+    # serialize amount, 8 bytes, little endian
+    result = int2bytes(tx.amount, 8, true)
+    # serialize the script_pubkey
+    append!(result, scriptserialize(tx.script_pubkey))
+    return result
+end
 
 struct Tx <: TxComponent
     version::Integer
@@ -111,4 +136,21 @@ function txparse(s::Base.GenericIOBuffer)
     readbytes!(s, bytes, 4)
     locktime = bytes2int(bytes, true)
     return Tx(version, inputs, outputs, locktime)
+end
+
+"""
+Returns the byte serialization of the transaction
+"""
+function txserialize(tx::Tx)
+    result = int2bytes(tx.version, 4, true)
+    append!(result, encode_varint(length(tx.tx_ins)))
+    for tx_in in tx.tx_ins
+        append!(result, txinserialize(tx_in))
+    end
+    append!(result, encode_varint(length(tx.tx_outs)))
+    for tx_out in tx.tx_outs
+        append!(result, txoutserialize(tx_out))
+    end
+    append!(result, int2bytes(tx.locktime, 4, true))
+    return result
 end

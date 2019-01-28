@@ -23,7 +23,7 @@ using ECC
 using SHA: sha1, sha256
 using Ripemd: ripemd160
 using Base58: base58checkencode
-export address, wif, txparse
+export address, wif, txparse, txserialize
 
 include("helper.jl")
 include("address.jl")

@@ -65,13 +65,17 @@ Convert Integer to Array{UInt8}
 
 int2bytes(x::Integer) -> Array{UInt8,1}
 """
-function int2bytes(x::Integer, l::Integer=0)
+function int2bytes(x::Integer, l::Integer=0, little_endian::Bool=false)
     result = reinterpret(UInt8, [hton(x)])
     i = findfirst(x -> x != 0x00, result)
     if l != 0
         i = length(result) - l + 1
     end
-    return result[i:end]
+    result = result[i:end]
+    if little_endian
+        reverse!(result)
+    end
+    return result
 end
 
 function int2bytes(x::BigInt)

@@ -116,6 +116,15 @@ function txinvalue(txin::TxIn, testnet::Bool=false)
     return tx.tx_outs[txin.prev_index].amount
 end
 
+"""
+Get the scriptPubKey by looking up the tx hash
+Returns a Script object
+"""
+function txin_scriptpubkey(txin::TxIn, testnet::Bool=false)
+    tx = txin_fetchtx(txin, testnet)
+    return tx.tx_outs[txin.prev_index].script_pubkey
+end
+
 
 struct TxOut <: TxComponent
     amount::Integer

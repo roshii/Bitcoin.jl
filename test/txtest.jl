@@ -65,4 +65,11 @@
         tx_in = Bitcoin.TxIn(hex2bytes(tx_hash), index)
         @test Bitcoin.txinvalue(tx_in) == want
     end
+    @testset "Input PubKey" begin
+        tx_hash = "d1c789a9c60383bf715f3f6ad9d14b91fe55f3deb369fe5d9280cb1a01793f81"
+        index = 1
+        want = hex2bytes("1976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac")
+        tx_in = Bitcoin.TxIn(hex2bytes(tx_hash), index)
+        @test Bitcoin.scriptserialize(Bitcoin.txin_scriptpubkey(tx_in)) == want
+    end
 end

@@ -15,6 +15,50 @@
     along with Bitcoin.jl.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+using HTTP
+
+struct Fetcher
+    cache::Dict{String,Any}
+    Fetcher(cache::Nothing) = new(Dict{String,Any}())
+    Fetcher(cache) = new(cache)
+end
+
+function geturl(testnet::Bool=false)
+    if testnet
+        return "http://tbtc.brane.cc:18332"
+    else
+        return "http://btc.brane.cc:8332"
+    end
+end
+
+function txfetch(tx_id, testnet::Bool=false, fresh::Bool=false, fetcher::Fetcher=Fetcher(nothing))
+    if fresh || !haskey(fetcher.cache, tx_id)
+        url = string(geturl(testnet), "/rest/tx/", tx_id, ".bin")
+        response = HTTP.request("GET", url)
+        try
+            response.status == 200
+        catch
+            error("Unexpected status: ", response.status)
+        end
+        raw = response.body
+        if raw[5] == 0
+            splice!(raw, 6)
+            tx = txparse(IOBuffer(raw), testnet)
+            tx.locktime = bytes2int(raw[end-3:end], true)
+        else
+            tx = txparse(IOBuffer(raw), testnet)
+        end
+        # make sure the tx we got matches to the hash we requested
+        if txid(tx) != tx_id
+            error("not the same id : ", txid(tx),
+                "\n             vs : ", tx_id)
+        end
+        fetcher.cache[tx_id] = tx
+    end
+    # fetcher.cache[tx_id].testnet = testnet
+    return fetcher.cache[tx_id]
+end
+
 abstract type TxComponent end
 
 struct TxIn <: TxComponent
@@ -22,17 +66,13 @@ struct TxIn <: TxComponent
     prev_index::Integer
     script_sig::Script
     sequence::Integer
-    TxIn(prev_tx, prev_index, script_sig::Nothing, sequence=b"\xffffffff") = new(prev_tx, prev_index, Script(), sequence)
+    TxIn(prev_tx, prev_index) = new(prev_tx, prev_index, Script(nothing))
     TxIn(prev_tx, prev_index, script_sig, sequence=b"\xffffffff") = new(prev_tx, prev_index, script_sig, sequence)
 end
 
-# TODO
-# function show()
-#     return '{}:{}'.format(
-#     self.prev_tx.hex(),
-#     self.prev_index,
-#     )
-# end
+function show(io::IO, z::TxIn)
+    print(io, "\n", bytes2hex(z.prev_tx), ":", z.prev_index)
+end
 
 """
 Takes a byte stream and parses the tx_input at the start
@@ -55,17 +95,27 @@ end
 Returns the byte serialization of the transaction input
 """
 function txinserialize(tx::TxIn)
-    # serialize prev_tx, little endian
     result = tx.prev_tx
     reverse!(result)
-    # serialize prev_index, 4 bytes, little endian
     append!(result, int2bytes(tx.prev_index, 4, true))
-    # serialize the script_sig
     append!(result, scriptserialize(tx.script_sig))
-    # serialize sequence, 4 bytes, little endian
     append!(result, int2bytes(tx.sequence, 4, true))
     return result
 end
+
+function txin_fetchtx(tx::TxIn, testnet::Bool=false)
+    return txfetch(bytes2hex(tx.prev_tx), testnet)
+end
+
+"""
+Get the outpoint value by looking up the tx hash
+Returns the amount in satoshi
+"""
+function txinvalue(txin::TxIn, testnet::Bool=false)
+    tx = txin_fetchtx(txin, testnet)
+    return tx.tx_outs[txin.prev_index].amount
+end
+
 
 struct TxOut <: TxComponent
     amount::Integer
@@ -73,10 +123,9 @@ struct TxOut <: TxComponent
     TxOut(amount, script_pubkey) = new(amount, script_pubkey)
 end
 
-# TODO
-# function show(args)
-#     body
-# end
+function show(io::IO, z::TxOut)
+    print(io, "\n", z.script_pubkey, "\namout (BTC) : ", z.amount / 100000000)
+end
 
 """
 Takes a byte stream and parses the tx_output at the start
@@ -94,9 +143,7 @@ end
 Returns the byte serialization of the transaction output
 """
 function txoutserialize(tx::TxOut)
-    # serialize amount, 8 bytes, little endian
     result = int2bytes(tx.amount, 8, true)
-    # serialize the script_pubkey
     append!(result, scriptserialize(tx.script_pubkey))
     return result
 end
@@ -110,16 +157,21 @@ struct Tx <: TxComponent
     Tx(version, tx_ins, tx_outs, locktime, testnet=false) = new(version, tx_ins, tx_outs, locktime, testnet)
 end
 
-# TODO
-# function show()
-# end
-
+function show(io::IO, z::Tx)
+    print(io, "Transaction\n--------\nTestnet : ", z.testnet,
+            "\nVersion : ", z.version,
+            "\nLocktime : ", z.locktime,
+            "\n--------\n",
+            "\n", z.tx_ins,
+            "\n--------\n",
+            "\n", z.tx_outs)
+end
 
 """
 Takes a byte stream and parses the transaction at the start
 return a Tx object
 """
-function txparse(s::Base.GenericIOBuffer)
+function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
     bytes = UInt8[]
     readbytes!(s, bytes, 4)
     version = bytes2int(bytes, true)
@@ -153,4 +205,19 @@ function txserialize(tx::Tx)
     end
     append!(result, int2bytes(tx.locktime, 4, true))
     return result
+end
+
+
+"""
+Binary hash of the legacy serialization
+"""
+function txhash(tx::Tx)
+    return reverse(sha256(sha256(txserialize(tx))))
+end
+
+"""
+Human-readable hexadecimal of the transaction hash
+"""
+function txid(tx::Tx)
+    return bytes2hex(txhash(tx))
 end

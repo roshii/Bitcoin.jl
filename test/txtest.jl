@@ -58,4 +58,11 @@
         tx = txparse(stream)
         @test txserialize(tx) == raw_tx
     end
+    @testset  "Input Value" begin
+        tx_hash = "d1c789a9c60383bf715f3f6ad9d14b91fe55f3deb369fe5d9280cb1a01793f81"
+        index = 1
+        want = 42505594
+        tx_in = Bitcoin.TxIn(hex2bytes(tx_hash), index)
+        @test Bitcoin.txinvalue(tx_in) == want
+    end
 end

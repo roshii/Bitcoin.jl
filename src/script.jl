@@ -19,15 +19,28 @@
 
 struct Script
     instructions::Array{Union{UInt8, Array{UInt8, 1}}, 1}
-    Script(instructions=nothing) = new(Array{Union{UInt8, Array{UInt8, 1}}, 1})
+    Script(instructions::Nothing) = new(Union{UInt8, Array{UInt8, 1}}[])
     Script(instructions) = new(instructions)
 end
 
+function show(io::IO, z::Script)
+    for instruction in z.instructions
+        if typeof(instruction) <: Integer
+            if haskey(OP_CODE_NAMES, instruction)
+                print(io, "\n", OP_CODE_NAMES[Int(instruction)])
+            else
+                print(io, "\n", string("OP_CODE_", Int(instruction)))
+            end
+        else
+            print(io, "\n", bytes2hex(instruction))
+        end
+    end
+end
+
 """
-    scriptparse(s::Script) -> Script
+    scriptparse(::GenericIOBuffer) -> Script
 """
 function scriptparse(s::Base.GenericIOBuffer{Array{UInt8,1}})
-    # s = IOBuffer(s.instructions[1])
     length_ = read_varint(s)
     instructions = []
     count = 0

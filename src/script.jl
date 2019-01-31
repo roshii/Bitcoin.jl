@@ -17,7 +17,7 @@
     along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-struct Script
+mutable struct Script
     instructions::Array{Union{UInt8, Array{UInt8, 1}}, 1}
     Script(instructions::Nothing) = new(Union{UInt8, Array{UInt8, 1}}[])
     Script(instructions) = new(instructions)
@@ -62,7 +62,7 @@ function scriptparse(s::Base.GenericIOBuffer{Array{UInt8,1}})
             instruction = UInt8[]
             readbytes!(s, instruction, n[1])
             push!(instructions, instruction)
-            count += n + 1
+            count += n[1] + 1
         elseif current_byte == 77
             # op_pushdata2
             n = UInt8[]
@@ -110,5 +110,51 @@ end
 function scriptserialize(s::Script)
     result = rawserialize(s)
     total = length(result)
-    return prepend!(result, encode_varint(total))
+    prepend!(result, encode_varint(total))
+    return result
+end
+
+function scriptevaluate(s::Script, z::Integer)
+    instructions = copy(s.instructions)
+    stack = Array{UInt8,1}[]
+    altstack = Array{UInt8,1}[]
+    while length(instructions) > 0
+        instruction = popfirst!(instructions)
+        if typeof(instruction) <: Integer
+            operation = OP_CODE_FUNCTIONS[instruction]
+            function badop(instruction::Integer)
+                println("bad op: ", OP_CODE_NAMES[instruction])
+            end
+            if instruction in (99, 100)
+                # op_if/op_notif require the  array
+                if !operation(stack, instructions)
+                    badop(instruction)
+                    return false
+                end
+            elseif instruction in (107, 108)
+                # op_toaltstack/op_fromaltstack require the altstack
+                if !operation(stack, altstack)
+                    badop(instruction)
+                    return false
+                end
+            elseif instruction in (172, 173, 174, 175)
+                if !operation(stack, z)
+                    badop(instruction)
+                    return false
+                end
+            elseif !operation(stack)
+                badop(instruction)
+                return false
+            end
+        else
+            push!(stack, instruction)
+        end
+    end
+    if length(stack) == 0
+        return false
+    end
+    if pop!(stack) == Array{UInt8,1}[]
+        return false
+    end
+    return true
 end

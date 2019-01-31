@@ -48,11 +48,11 @@ Encodes an integer as a varint
     if n < 0xfd
         return [UInt8(n)]
     elseif n < 0x10000
-        return prepend!(int2bytes(n, 2), [0xfd])
+        return prepend!(int2bytes(n, 2, true), [0xfd])
     elseif n < 0x100000000
-        return prepend!(int2bytes(n, 4), [0xfd])
+        return prepend!(int2bytes(n, 4, true), [0xfd])
     elseif n < 0x10000000000000000
-        return prepend!(int2bytes(n, 8), [0xfd])
+        return prepend!(int2bytes(n, 8, true), [0xfd])
     else
         error("Integer, ", i, " is too large")
     end
@@ -149,4 +149,11 @@ end
 function bytes2big(x::Array{UInt8,1})
     hex = bytes2hex(x)
     return parse(BigInt, hex, base=16)
+end
+
+"""
+Double sha256 function
+"""
+function hash256(x::Array{UInt8, 1})
+    return sha256(sha256(x))
 end

@@ -74,102 +74,104 @@ function decode_num(element::Array{UInt8,1})
     end
 end
 
-function op_0(stack::Array{Array{UInt8,1},1})
+StackType = Array{Array{UInt8,1},1}
+
+function op_0(stack::StackType)
     push!(stack, encode_num(0))
     return true
 end
 
-function op_1negate(stack::Array{Array{UInt8,1},1})
+function op_1negate(stack::StackType)
     push!(stack, encode_num(-1))
     return true
 end
 
-function op_1(stack::Array{Array{UInt8,1},1})
+function op_1(stack::StackType)
     push!(stack, encode_num(1))
     return true
 end
 
-function op_2(stack::Array{Array{UInt8,1},1})
+function op_2(stack::StackType)
     push!(stack, encode_num(2))
     return true
 end
 
-function op_3(stack::Array{Array{UInt8,1},1})
+function op_3(stack::StackType)
     push!(stack, encode_num(3))
     return true
 end
 
-function op_4(stack::Array{Array{UInt8,1},1})
+function op_4(stack::StackType)
     push!(stack, encode_num(4))
     return true
 end
 
-function op_5(stack::Array{Array{UInt8,1},1})
+function op_5(stack::StackType)
     push!(stack, encode_num(5))
     return true
 end
 
-function op_6(stack::Array{Array{UInt8,1},1})
+function op_6(stack::StackType)
     push!(stack, encode_num(6))
     return true
 end
 
-function op_7(stack::Array{Array{UInt8,1},1})
+function op_7(stack::StackType)
     push!(stack, encode_num(7))
     return true
 end
 
-function op_8(stack::Array{Array{UInt8,1},1})
+function op_8(stack::StackType)
     push!(stack, encode_num(8))
     return true
 end
 
-function op_9(stack::Array{Array{UInt8,1},1})
+function op_9(stack::StackType)
     push!(stack, encode_num(9))
     return true
 end
 
-function op_10(stack::Array{Array{UInt8,1},1})
+function op_10(stack::StackType)
     push!(stack, encode_num(10))
     return true
 end
 
-function op_11(stack::Array{Array{UInt8,1},1})
+function op_11(stack::StackType)
     push!(stack, encode_num(11))
     return true
 end
 
-function op_12(stack::Array{Array{UInt8,1},1})
+function op_12(stack::StackType)
     push!(stack, encode_num(12))
     return true
 end
 
-function op_13(stack::Array{Array{UInt8,1},1})
+function op_13(stack::StackType)
     push!(stack, encode_num(13))
     return true
 end
 
-function op_14(stack::Array{Array{UInt8,1},1})
+function op_14(stack::StackType)
     push!(stack, encode_num(14))
     return true
 end
 
-function op_15(stack::Array{Array{UInt8,1},1})
+function op_15(stack::StackType)
     push!(stack, encode_num(15))
     return true
 end
 
-function op_16(stack::Array{Array{UInt8,1},1})
+function op_16(stack::StackType)
     push!(stack, encode_num(16))
     return true
 end
 
-function op_nop(stack::Array{Array{UInt8,1},1})
+function op_nop(stack::StackType)
     return true
 end
 
 # TODO verify actual behavior
-function op_if(stack::Array{Array{UInt8,1},1}, items::Array{UInt8,1})
+function op_if(stack::StackType, items::Array{UInt8,1})
     if length(stack) < 1
         return false
     end
@@ -211,7 +213,7 @@ function op_if(stack::Array{Array{UInt8,1},1}, items::Array{UInt8,1})
     return true
 end
 
-function op_notif(stack::Array{Array{UInt8,1},1}, items::Array{UInt8,1})
+function op_notif(stack::StackType, items::Array{UInt8,1})
     if length(stack) < 1
         return false
     end
@@ -253,7 +255,7 @@ function op_notif(stack::Array{Array{UInt8,1},1}, items::Array{UInt8,1})
     end
 end
 
-function op_verify(stack::Array{Array{UInt8,1},1})
+function op_verify(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -264,11 +266,11 @@ function op_verify(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_return(stack::Array{Array{UInt8,1},1})
+function op_return(stack::StackType)
     return false
 end
 
-function op_toaltstack(stack::Array{Array{UInt8,1},1}, altstack::Array{Array{UInt8,1},1})
+function op_toaltstack(stack::StackType, altstack::StackType)
     if length(stack) < 1
         return false
     end
@@ -276,7 +278,7 @@ function op_toaltstack(stack::Array{Array{UInt8,1},1}, altstack::Array{Array{UIn
     return true
 end
 
-function op_fromaltstack(stack::Array{Array{UInt8,1},1}, altstack::Array{Array{UInt8,1},1})
+function op_fromaltstack(stack::StackType, altstack::StackType)
     if length(stack) < 1
         return false
     end
@@ -284,7 +286,7 @@ function op_fromaltstack(stack::Array{Array{UInt8,1},1}, altstack::Array{Array{U
     return true
 end
 
-function op_2drop(stack::Array{Array{UInt8,1},1})
+function op_2drop(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -293,7 +295,7 @@ function op_2drop(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_2dup(stack::Array{Array{UInt8,1},1})
+function op_2dup(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -301,7 +303,7 @@ function op_2dup(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_3dup(stack::Array{Array{UInt8,1},1})
+function op_3dup(stack::StackType)
     if length(stack) < 3
         return false
     end
@@ -309,7 +311,7 @@ function op_3dup(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_2over(stack::Array{Array{UInt8,1},1})
+function op_2over(stack::StackType)
     if length(stack) < 4
         return false
     end
@@ -317,7 +319,7 @@ function op_2over(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_2rot(stack::Array{Array{UInt8,1},1})
+function op_2rot(stack::StackType)
     if length(stack) < 6
         return false
     end
@@ -325,7 +327,7 @@ function op_2rot(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_2swap(stack::Array{Array{UInt8,1},1})
+function op_2swap(stack::StackType)
     if length(stack) < 4
         return false
     end
@@ -333,7 +335,7 @@ function op_2swap(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_ifdup(stack::Array{Array{UInt8,1},1})
+function op_ifdup(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -343,12 +345,12 @@ function op_ifdup(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_depth(stack::Array{Array{UInt8,1},1})
+function op_depth(stack::StackType)
     push!(stack, encode_num(length(stack)))
     return true
 end
 
-function op_drop(stack::Array{Array{UInt8,1},1})
+function op_drop(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -356,7 +358,7 @@ function op_drop(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_dup(stack::Array{Array{UInt8,1},1})
+function op_dup(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -364,7 +366,7 @@ function op_dup(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_nip(stack::Array{Array{UInt8,1},1})
+function op_nip(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -372,7 +374,7 @@ function op_nip(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_over(stack::Array{Array{UInt8,1},1})
+function op_over(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -380,7 +382,7 @@ function op_over(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_pick(stack::Array{Array{UInt8,1},1})
+function op_pick(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -392,7 +394,7 @@ function op_pick(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_roll(stack::Array{Array{UInt8,1},1})
+function op_roll(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -408,7 +410,7 @@ function op_roll(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_rot(stack::Array{Array{UInt8,1},1})
+function op_rot(stack::StackType)
     if length(stack) < 3
         return false
     end
@@ -416,7 +418,7 @@ function op_rot(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_swap(stack::Array{Array{UInt8,1},1})
+function op_swap(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -425,7 +427,7 @@ function op_swap(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_tuck(stack::Array{Array{UInt8,1},1})
+function op_tuck(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -434,7 +436,7 @@ function op_tuck(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_size(stack::Array{Array{UInt8,1},1})
+function op_size(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -442,7 +444,7 @@ function op_size(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_equal(stack::Array{Array{UInt8,1},1})
+function op_equal(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -456,11 +458,12 @@ function op_equal(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_equalverify(stack::Array{Array{UInt8,1},1})
+function op_equalverify(stack::StackType)
     return op_equal(stack) && op_verify(stack)
+
 end
 
-function op_1add(stack::Array{Array{UInt8,1},1})
+function op_1add(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -468,8 +471,7 @@ function op_1add(stack::Array{Array{UInt8,1},1})
     push!(stack, encode_num(element + 1))
     return true
 end
-
-function op_1sub(stack::Array{Array{UInt8,1},1})
+function op_1sub(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -478,7 +480,7 @@ function op_1sub(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_negate(stack::Array{Array{UInt8,1},1})
+function op_negate(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -487,7 +489,7 @@ function op_negate(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_abs(stack::Array{Array{UInt8,1},1})
+function op_abs(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -496,7 +498,7 @@ function op_abs(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_not(stack::Array{Array{UInt8,1},1})
+function op_not(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -509,7 +511,7 @@ function op_not(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_0notequal(stack::Array{Array{UInt8,1},1})
+function op_0notequal(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -522,7 +524,7 @@ function op_0notequal(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_add(stack::Array{Array{UInt8,1},1})
+function op_add(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -532,7 +534,7 @@ function op_add(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_sub(stack::Array{Array{UInt8,1},1})
+function op_sub(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -542,7 +544,7 @@ function op_sub(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_booland(stack::Array{Array{UInt8,1},1})
+function op_booland(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -556,7 +558,7 @@ function op_booland(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_boolor(stack::Array{Array{UInt8,1},1})
+function op_boolor(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -570,7 +572,7 @@ function op_boolor(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_numequal(stack::Array{Array{UInt8,1},1})
+function op_numequal(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -584,11 +586,11 @@ function op_numequal(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_numequalverify(stack::Array{Array{UInt8,1},1})
+function op_numequalverify(stack::StackType)
     return op_numequal(stack) && op_verify(stack)
 end
 
-function op_numnotequal(stack::Array{Array{UInt8,1},1})
+function op_numnotequal(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -602,7 +604,7 @@ function op_numnotequal(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_lessthan(stack::Array{Array{UInt8,1},1})
+function op_lessthan(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -616,7 +618,7 @@ function op_lessthan(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_greaterthan(stack::Array{Array{UInt8,1},1})
+function op_greaterthan(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -630,7 +632,7 @@ function op_greaterthan(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_lessthanorequal(stack::Array{Array{UInt8,1},1})
+function op_lessthanorequal(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -644,7 +646,7 @@ function op_lessthanorequal(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_greaterthanorequal(stack::Array{Array{UInt8,1},1})
+function op_greaterthanorequal(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -659,7 +661,7 @@ function op_greaterthanorequal(stack::Array{Array{UInt8,1},1})
 end
 
 
-function op_min(stack::Array{Array{UInt8,1},1})
+function op_min(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -673,7 +675,7 @@ function op_min(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_max(stack::Array{Array{UInt8,1},1})
+function op_max(stack::StackType)
     if length(stack) < 2
         return false
     end
@@ -687,7 +689,7 @@ function op_max(stack::Array{Array{UInt8,1},1})
     return true
 end
 
-function op_within(stack::Array{Array{UInt8,1},1})
+function op_within(stack::StackType)
     if length(stack) < 3
         return false
     end
@@ -705,7 +707,7 @@ end
 """
 Return RIPEMD160 hash of top item
 """
-function op_ripemd160(stack::Array{Array{UInt8,1},1})
+function op_ripemd160(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -717,7 +719,7 @@ end
 """
 Return SHA1 hash of top item
 """
-function op_sha1(stack::Array{Array{UInt8,1},1})
+function op_sha1(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -729,7 +731,7 @@ end
 """
 Return SHA256 hash of top item
 """
-function op_sha256(stack::Array{Array{UInt8,1},1})
+function op_sha256(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -741,7 +743,7 @@ end
 """
 Return RIPEMD160(SHA256(x)) hash of top item
 """
-function op_hash160(stack::Array{Array{UInt8,1},1})
+function op_hash160(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -753,7 +755,7 @@ end
 """
 Return SHA256(SHA256(x)) hash of top item
 """
-function op_hash256(stack::Array{Array{UInt8,1},1})
+function op_hash256(stack::StackType)
     if length(stack) < 1
         return false
     end
@@ -766,7 +768,7 @@ end
 Pop a public key an signature and validate the signature for the transaction's
 hashed data, return TRUE if matching
 """
-function op_checksig(stack::Array{Array{UInt8,1},1}, z::Integer)
+function op_checksig(stack::StackType, z::Integer)
     if length(stack) < 2
         return false
     end
@@ -786,7 +788,7 @@ end
 """
 Same as CHECKSIG, then OP_VERIFY to halt if not TRUE
 """
-function op_checksigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
+function op_checksigverify(stack::StackType, z::Integer)
     return op_checksig(stack, z) && op_verify(stack)
 end
 
@@ -795,14 +797,14 @@ Run CHECKSIG for each pair of signature and public key provided. All must match.
 Bug in implementation pops an extra value, prefix with OP_NOP as workaround
 """
 # TODO
-function op_checkmultisig(stack::Array{Array{UInt8,1},1}, z::Integer)
+function op_checkmultisig(stack::StackType, z::Integer)
     error("not implemented")
 end
 
 """
 Same as CHECKMULTISIG, then OP_VERIFY to halt if not TRUE
 """
-function op_checkmultisigverify(stack::Array{Array{UInt8,1},1}, z::Integer)
+function op_checkmultisigverify(stack::StackType, z::Integer)
     return op_checkmultisig(stack, z) && op_verify(stack)
 end
 
@@ -816,7 +818,7 @@ or equal to 500000000 while the transaction's nLockTime field is less than
 500000000, or vice versa; or 4. the input's nSequence field is equal to
 0xffffffff. The precise semantics are described in BIP-65
 """
-function op_checklocktimeverify(stack::Array{Array{UInt8,1},1}, locktime::Integer, sequence::Integer)
+function op_checklocktimeverify(stack::StackType, locktime::Integer, sequence::Integer)
     if sequence == 0xffffffff || length(stack) < 1
          return false
     end
@@ -837,7 +839,7 @@ Marks transaction as invalid if the relative lock time of the input (enforced by
 BIP-68 with nSequence) is not equal to or longer than the value of the top stack
 item. The precise semantics are described in BIP-112
 """
-function op_checksequenceverify(stack::Array{Array{UInt8,1},1}, version::Integer, sequence::Integer)
+function op_checksequenceverify(stack::StackType, version::Integer, sequence::Integer)
     error("not implemented")
 end
 

@@ -27,4 +27,8 @@
             @test Bitcoin.read_varint(IOBuffer(t[1])) == t[2]
         end
     end
+    @testset "encode_varint" begin
+        want = [0xfd, 0xfe, 0x00]
+        @test Bitcoin.encode_varint(254) == want
+    end
 end

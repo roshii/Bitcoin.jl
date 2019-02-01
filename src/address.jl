@@ -19,7 +19,7 @@
 """
     adress(P::ECC.S256Point, compressed::Bool, testnet::Bool) -> String
 
-Returns the Base58 Bitcoin address.
+Returns the Base58 Bitcoin address given an S256Point
 Compressed is set to true if not provided.
 Testnet is set to false by default.
 """
@@ -38,7 +38,7 @@ end
 """
     wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false) -> String
 
-Returns a PrivateKey with WIF - Wallet Import Format
+Returns a PrivateKey in Wallet Import Format
 Compressed is set to true if not provided.
 Testnet is set to false by default.
 """

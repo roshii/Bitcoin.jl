@@ -4,8 +4,28 @@ A Bitcoin library for Julia
 
 ## Functions
 
+### Address
+
 ```@docs
 address
+wif
+```
+
+### Transaction
+
+```@docs
+txparse
+txserialize
+txfetch
+txid
+txfee
+txsighash
+```
+
+### Script
+
+```@docs
+scriptevaluate
 ```
 
 ## Buy me a cup of coffee

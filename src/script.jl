@@ -39,6 +39,8 @@ end
 
 """
     scriptparse(::GenericIOBuffer) -> Script
+
+Returns a Script object from an IOBuffer
 """
 function scriptparse(s::Base.GenericIOBuffer{Array{UInt8,1}})
     length_ = read_varint(s)
@@ -114,6 +116,11 @@ function scriptserialize(s::Script)
     return result
 end
 
+"""
+    scriptevaluate(s::Script, z::Integer) -> Bool
+
+Evaluate if Script is valid given the transaction signature hash
+"""
 function scriptevaluate(s::Script, z::Integer)
     instructions = copy(s.instructions)
     stack = Array{UInt8,1}[]

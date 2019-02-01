@@ -765,7 +765,7 @@ function op_hash256(stack::StackType)
 end
 
 """
-Pop a public key an signature and validate the signature for the transaction's
+Pop a public key and signature and validate the signature for the transaction's
 hashed data, return TRUE if matching
 """
 function op_checksig(stack::StackType, z::Integer)

@@ -31,7 +31,12 @@ function geturl(testnet::Bool=false)
     end
 end
 
-function txfetch(tx_id, testnet::Bool=false, fresh::Bool=false, fetcher::Fetcher=Fetcher(nothing))
+"""
+    txfetch(tx_id::String) -> Tx
+
+Returns the bitcoin transaction given its ID as an hexadecimal string.
+"""
+function txfetch(tx_id::String, testnet::Bool=false, fresh::Bool=false, fetcher::Fetcher=Fetcher(nothing))
     if fresh || !haskey(fetcher.cache, tx_id)
         url = string(geturl(testnet), "/rest/tx/", tx_id, ".bin")
         response = HTTP.request("GET", url)
@@ -177,8 +182,9 @@ function show(io::IO, z::Tx)
 end
 
 """
-Takes a byte stream and parses the transaction at the start
-return a Tx object
+    txparse(s::Base.GenericIOBuffer, testnet::Bool=false) -> Tx
+
+Returns a Tx object given a byte stream
 """
 function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
     bytes = UInt8[]
@@ -202,6 +208,8 @@ function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
 end
 
 """
+    txserialize(tx::Tx) -> Array{UInt8,1}
+
 Returns the byte serialization of the transaction
 """
 function txserialize(tx::Tx)
@@ -227,13 +235,17 @@ function txhash(tx::Tx)
 end
 
 """
-Human-readable hexadecimal of the transaction hash
+    txid(tx::Tx) -> String
+
+Returns an hexadecimal string of the transaction hash
 """
 function txid(tx::Tx)
     return bytes2hex(txhash(tx))
 end
 
 """
+    txfee(tx::Tx) -> Integer
+
 Returns the fee of this transaction in satoshi
 """
 function txfee(tx::Tx)
@@ -248,6 +260,8 @@ function txfee(tx::Tx)
 end
 
 """
+    txsighash(tx::Tx, input_index::Integer) -> Integer
+
 Returns the integer representation of the hash that needs to get
 signed for index input_index
 """

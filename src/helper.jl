@@ -50,11 +50,11 @@ Encodes an integer as a varint
     elseif n < 0x10000
         return prepend!(int2bytes(n, 2, true), [0xfd])
     elseif n < 0x100000000
-        return prepend!(int2bytes(n, 4, true), [0xfd])
+        return prepend!(int2bytes(n, 4, true), [0xfe])
     elseif n < 0x10000000000000000
-        return prepend!(int2bytes(n, 8, true), [0xfd])
+        return prepend!(int2bytes(n, 8, true), [0xff])
     else
-        error("Integer, ", i, " is too large")
+        error("Integer, ", n, " is too large")
     end
  end
 

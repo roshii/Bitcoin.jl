@@ -30,5 +30,10 @@
     @testset "encode_varint" begin
         want = [0xfd, 0xfe, 0x00]
         @test Bitcoin.encode_varint(254) == want
+        want = [0xfe, 0xff, 0xff, 0xff, 0xff]
+        @test Bitcoin.encode_varint(0x100000000-1) == want
+        want = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+        @test Bitcoin.encode_varint(0x10000000000000000-1) == want
+        @test_throws UndefVarError encode_varint(0x10000000000000000)
     end
 end

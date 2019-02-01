@@ -1,5 +1,5 @@
 name = "Bitcoin"
-uuid = "9e37136c-f6ec-11e8-3ef2-43ac56b68960"
+uuid = "785d7830-48c5-59de-ae5e-7712913079e9"
 keywords = ["blockchain"]
 license = "GPLv3"
 authors = ["roshii <admin@brane.cc>"]

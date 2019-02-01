@@ -7,7 +7,7 @@ and learning materials.
 
 ## Documentation
 
-https://braneproject.gitlab.io/bitcoin.jl
+https://braneproject.gitlab.io/Bitcoin.jl/
 
 ## Buy me a cup of coffee
 

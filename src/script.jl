@@ -146,3 +146,24 @@ function scriptevaluate(s::Script, z::Integer)
     end
     return true
 end
+
+"""
+Takes a hash160 and returns the p2pkh scriptPubKey
+"""
+function p2pkh_script(h160::Array{UInt8,1})
+    script = Union{UInt8, Array{UInt8,1}}[]
+    pushfirst!(script, 0x76, 0xa9)
+    push!(script, h160, 0x88, 0xac)
+    return Script(script)
+end
+
+
+"""
+Takes a hash160 and returns the p2sh scriptPubKey
+"""
+function p2sh_script(h160::Array{UInt8,1})
+    script = Union{UInt8, Array{UInt8,1}}[]
+    pushfirst!(script, 0xa9)
+    push!(script, h160, 0x87)
+    return Script(h160)
+end

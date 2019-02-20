@@ -29,8 +29,9 @@ function txfetch(tx_id::String, testnet::Bool=false, fresh::Bool=false, fetcher:
             error("Unexpected status: ", response.status)
         end
         raw = response.body
-        if raw[5] == 0
-            splice!(raw, 6)
+        if raw[5:6] == [0x00, 0x01]
+            deleteat!(raw, 5:6)
+            # flag = true # If present, always 0001, and indicates the presence of witness data
             tx = txparse(IOBuffer(raw), testnet)
             tx.locktime = bytes2int(raw[end-3:end], true)
         else
@@ -53,8 +54,8 @@ mutable struct TxIn <: TxComponent
     prev_index::Integer
     script_sig::Script
     sequence::Integer
-    TxIn(prev_tx, prev_index) = new(prev_tx, prev_index, Script(nothing))
-    TxIn(prev_tx, prev_index, script_sig, sequence=b"\xffffffff") = new(prev_tx, prev_index, script_sig, sequence)
+    TxIn(prev_tx, prev_index) = new(prev_tx, prev_index, Script(nothing), 0xffffffff)
+    TxIn(prev_tx, prev_index, script_sig, sequence=0xffffffff) = new(prev_tx, prev_index, script_sig, sequence)
 end
 
 function show(io::IO, z::TxIn)
@@ -186,7 +187,7 @@ function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
     end
     readbytes!(s, bytes, 4)
     locktime = bytes2int(bytes, true)
-    return Tx(version, inputs, outputs, locktime)
+    return Tx(version, inputs, outputs, locktime, testnet)
 end
 
 """
@@ -248,7 +249,7 @@ Returns the integer representation of the hash that needs to get
 signed for index input_index
 """
 function txsighash(tx::Tx, input_index::Integer)
-    alt_tx_ins = Array{TxIn, 1}()
+    alt_tx_ins = TxIn[]
     for tx_in in tx.tx_ins
         alt_tx_in = TxIn(tx_in.prev_tx, tx_in.prev_index, Script(nothing), tx_in.sequence)
         push!(alt_tx_ins, alt_tx_in)
@@ -292,4 +293,18 @@ function txverify(tx::Tx)
         end
     end
     return true
+end
+
+
+"""
+Signs the input using the private key
+"""
+function txsigninput(tx::Tx, input_index, private_key)
+    z = txsighash(tx, input_index)
+    sig = sig2der(pksign(private_key, z))
+    append!(sig, int2bytes(SIGHASH_ALL))
+    sec = point2sec(private_key.𝑃)
+    script_sig = Script([sig, sec])
+    tx.tx_ins[input_index + 1].script_sig = script_sig
+    return txinputverify(tx, input_index)
 end

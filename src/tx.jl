@@ -42,7 +42,7 @@ function txfetch(tx_id::String, testnet::Bool=false, fresh::Bool=false, fetcher:
         end
         fetcher.cache[tx_id] = tx
     end
-    # fetcher.cache[tx_id].testnet = testnet
+    fetcher.cache[tx_id].testnet = testnet
     return fetcher.cache[tx_id]
 end
 
@@ -66,7 +66,6 @@ Takes a byte stream and parses the tx_input at the start
 return a TxIn object
 """
 function txinparse(s::Base.GenericIOBuffer)
-    # s = IOBuffer(hex2bytes("c228021e1fee6f158cc506edea6bad7ffa421dd14fb7fd7e01c50cc9693e8dbe02000000fdfe0000483045022100c679944ff8f20373685e1122b581f64752c1d22c67f6f3ae26333aa9c3f43d730220793233401f87f640f9c39207349ffef42d0e27046755263c0a69c436ab07febc01483045022100eadc1c6e72f241c3e076a7109b8053db53987f3fcc99e3f88fc4e52dbfd5f3a202201f02cbff194c41e6f8da762e024a7ab85c1b1616b74720f13283043e9e99dab8014c69522102b0c7be446b92624112f3c7d4ffc214921c74c1cb891bf945c49fbe5981ee026b21039021c9391e328e0cb3b61ba05dcc5e122ab234e55d1502e59b10d8f588aea4632102f3bd8f64363066f35968bd82ed9c6e8afecbd6136311bb51e91204f614144e9b53aeffffffff05a08601000000000017a914081fbb6ec9d83104367eb1a6a59e2a92417d79298700350c00000000001976a914677345c7376dfda2c52ad9b6a153b643b6409a3788acc7f341160000000017a914234c15756b9599314c9299340eaabab7f1810d8287c02709000000000017a91469be3ca6195efcab5194e1530164ec47637d44308740420f00000000001976a91487fadba66b9e48c0c8082f33107fdb01970eb80388ac00000000"))
     prev_tx = UInt8[]
     readbytes!(s, prev_tx, 32)
     reverse!(prev_tx)
@@ -145,7 +144,7 @@ function txoutserialize(tx::TxOut)
     return result
 end
 
-struct Tx <: TxComponent
+mutable struct Tx <: TxComponent
     version::Integer
     tx_ins::Array{TxIn, 1}
     tx_outs::Array{TxOut, 1}
@@ -267,4 +266,30 @@ function txsighash(tx::Tx, input_index::Integer)
     append!(result, int2bytes(SIGHASH_ALL, 4, true))
     h256 = hash256(result)
     return bytes2int(h256)
+end
+
+"""
+Returns whether the input has a valid signature
+"""
+function txinputverify(tx::Tx, input_index)
+    tx_in = tx.tx_ins[input_index + 1]
+    z = txsighash(tx, input_index)
+    combined_script = tx_in.script_sig
+    append!(combined_script.instructions, txin_scriptpubkey(tx_in, tx.testnet).instructions)
+    return scriptevaluate(combined_script, z)
+end
+
+"""
+Verify this transaction
+"""
+function txverify(tx::Tx)
+    if txfee(tx) < 0
+        return false
+    end
+    for i in 1:length(tx.tx_ins)
+        if !txinputverify(tx, i - 1)
+            return false
+        end
+    end
+    return true
 end

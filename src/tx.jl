@@ -59,7 +59,7 @@ mutable struct TxIn <: TxComponent
 end
 
 function show(io::IO, z::TxIn)
-    print(io, "\n", bytes2hex(z.prev_tx), ":", z.prev_index)
+    print(io, "\n", bytes2hex(z.prev_tx), ":", z.prev_index, "\n", z.script_sig)
 end
 
 """
@@ -275,8 +275,9 @@ Returns whether the input has a valid signature
 function txinputverify(tx::Tx, input_index)
     tx_in = tx.tx_ins[input_index + 1]
     z = txsighash(tx, input_index)
-    combined_script = tx_in.script_sig
-    append!(combined_script.instructions, txin_scriptpubkey(tx_in, tx.testnet).instructions)
+    combined_script = Script(copy(tx_in.script_sig.instructions))
+    append!(combined_script.instructions,
+            txin_scriptpubkey(tx_in, tx.testnet).instructions)
     return scriptevaluate(combined_script, z)
 end
 

@@ -243,12 +243,11 @@ function txfee(tx::Tx)
 end
 
 """
-    txsighash(tx::Tx, input_index::Integer) -> Integer
+    txsighash256(tx::Tx, input_index::Integer) -> Array{UInt8,1}
 
-Returns the integer representation of the hash that needs to get
-signed for index input_index
+Returns the hash that needs to get signed for index input_index
 """
-function txsighash(tx::Tx, input_index::Integer)
+function txsighash256(tx::Tx, input_index::Integer)
     alt_tx_ins = TxIn[]
     for tx_in in tx.tx_ins
         alt_tx_in = TxIn(tx_in.prev_tx, tx_in.prev_index, Script(nothing), tx_in.sequence)
@@ -265,8 +264,17 @@ function txsighash(tx::Tx, input_index::Integer)
     result = UInt8[]
     append!(result, txserialize(alt_tx))
     append!(result, int2bytes(SIGHASH_ALL, 4, true))
-    h256 = hash256(result)
-    return bytes2int(h256)
+    return hash256(result)
+end
+
+"""
+    txsighash(tx::Tx, input_index::Integer) -> Integer
+
+Returns the integer representation of the hash that needs to get
+signed for index input_index
+"""
+function txsighash(tx::Tx, input_index::Integer)
+    return bytes2int(txsighash256(tx, input_index))
 end
 
 """
@@ -300,12 +308,17 @@ end
 """
 Signs the input using the private key
 """
-function txsigninput(tx::Tx, input_index, private_key)
+function txsigninput(tx::Tx, input_index::Integer, private_key::PrivateKey)
     z = txsighash(tx, input_index)
-    sig = sig2der(pksign(private_key, z))
-    append!(sig, int2bytes(SIGHASH_ALL))
-    sec = point2sec(private_key.𝑃)
-    script_sig = Script([sig, sec])
+    sig = pksign(private_key, z)
+    txpushsignature(tx, input_index, z, sig, private_key.𝑃)
+end
+
+function txpushsignature(tx::Tx, input_index::Integer, z::Integer, sig::Signature, pubkey::S256Point)
+    der = sig2der(sig)
+    append!(der, int2bytes(SIGHASH_ALL))
+    sec = point2sec(pubkey)
+    script_sig = Script([der, sec])
     tx.tx_ins[input_index + 1].script_sig = script_sig
     return txinputverify(tx, input_index)
 end

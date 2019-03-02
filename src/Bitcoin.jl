@@ -3,6 +3,7 @@ module Bitcoin
 using ECC, Base58
 using SHA: sha1, sha256
 using Ripemd: ripemd160
+import Base.show
 export Tx, TxIn, TxOut, Script
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
        scriptevaluate, txfetch, txverify, txsigninput

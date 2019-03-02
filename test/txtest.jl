@@ -1,3 +1,5 @@
+using Base58: base58checkdecode
+
 @testset "Transaction" begin
     raw_tx = hex2bytes("0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600")
     @testset "Parsing" begin
@@ -71,5 +73,24 @@
         tx = txparse(stream)
         want = parse(BigInt, "27e0c5994dec7824e56dec6b2fcb342eb7cdb0d0957c2fce9882f715e85d81a6", base=16)
         @test Bitcoin.txsighash(tx, 0) == want
+    end
+    @testset "Verify P2PKH" begin
+        tx = txfetch("452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03")
+        @test txverify(tx)
+        tx = txfetch("5418099cc755cb9dd3ebc6cf1a7888ad53a1a3beb5a025bce89eb1bf7f1650a2", true)
+        @test txverify(tx)
+    end
+    @testset "Sign Input" begin
+        private_key = PrivateKey(8675309)
+        tx_ins = TxIn[]
+        prev_tx = hex2bytes("0025bc3c0fa8b7eb55b9437fdbd016870d18e0df0ace7bc9864efc38414147c8")
+        push!(tx_ins, TxIn(prev_tx, 0))
+        tx_outs = TxOut[]
+        h160 = base58checkdecode(b"mzx5YhAH9kNHtcN481u6WkjeHjYtVeKVh2")[2:end]
+        push!(tx_outs, TxOut(Int(0.99 * 100000000), Bitcoin.p2pkh_script(h160)))
+        h160 = base58checkdecode(b"mnrVtF8DWjMu839VW3rBfgYaAfKk8983Xf")[2:end]
+        push!(tx_outs, TxOut(Int(0.1 * 100000000), Bitcoin.p2pkh_script(h160)))
+        tx = Tx(1, tx_ins, tx_outs, 0, true)
+        @test txsigninput(tx, 0, private_key)
     end
 end

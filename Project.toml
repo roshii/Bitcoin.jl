@@ -2,10 +2,10 @@ name = "Bitcoin"
 uuid = "785d7830-48c5-59de-ae5e-7712913079e9"
 keywords = ["blockchain"]
 license = "MIT"
-authors = ["roshii <admin@brane.cc>"]
+authors = ["Simon Castano <simon@brane.cc>"]
 description = "Bitcoin Library"
 repository = "https://gitlab.com/braneproject/Bitcoin.jl.git"
-version = "0.1.1"
+version = "0.1.3"
 
 [deps]
 Base58 = "a832ea1e-0ca7-55ca-a41a-6462721bb861"

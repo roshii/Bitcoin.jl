@@ -6,7 +6,7 @@ using Ripemd: ripemd160
 import Base.show
 export Tx, TxIn, TxOut, Script
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
-       scriptevaluate, txfetch, txverify, txsigninput
+       scriptevaluate, txfetch, txverify, txsigninput, h160_2_address
 
 const SIGHASH_ALL = 1
 const SIGHASH_NONE = 2

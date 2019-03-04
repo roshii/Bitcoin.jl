@@ -165,5 +165,55 @@ function p2sh_script(h160::Array{UInt8,1})
     script = Union{UInt8, Array{UInt8,1}}[]
     pushfirst!(script, 0xa9)
     push!(script, h160, 0x87)
-    return Script(h160)
+    return Script(script)
+end
+
+function scripttype(script::Script)
+    if is_p2pkh(script)
+        return "P2PKH"
+    elseif is_p2sh(script)
+        return "P2SH"
+    else
+        return error("Unknown Script type")
+    end
+end
+
+"""
+Returns whether this follows the
+OP_DUP OP_HASH160 <20 byte hash> OP_EQUALVERIFY OP_CHECKSIG pattern.
+"""
+function is_p2pkh(script::Script)
+    return length(script.instructions) == 5 &&
+        script.instructions[1] == 0x76 &&
+        script.instructions[2] == 0xa9 &&
+        typeof(script.instructions[3]) == Array{UInt8,1} &&
+        length(script.instructions[3]) == 20 &&
+        script.instructions[4] == 0x88 &&
+        script.instructions[5] == 0xac
+end
+
+"""
+Returns whether this follows the
+OP_HASH160 <20 byte hash> OP_EQUAL pattern.
+"""
+function is_p2sh(script::Script)
+    return length(script.instructions) == 3 &&
+           script.instructions[1] == 0xa9 &&
+           typeof(script.instructions[2]) == Array{UInt8,1} &&
+           length(script.instructions[2]) == 20 &&
+           script.instructions[3] == 0x87
+end
+
+const H160_INDEX = Dict([
+    ("P2PKH", 3),
+    ("P2SH", 2)
+])
+
+"""
+Returns the address corresponding to the script
+"""
+function script2address(script::Script, testnet::Bool)
+    type = scripttype(script)
+    h160 = script.instructions[H160_INDEX[type]]
+    return h160_2_address(h160, testnet, type)
 end

@@ -29,4 +29,19 @@
         append!(combined_script.instructions, copy(Bitcoin.txin_scriptpubkey(tx_in).instructions))
         @test Bitcoin.scriptevaluate(combined_script, z) == true
     end
+    @testset "Address" begin
+        using Base58
+        address_1 = "1BenRpVUFK65JFWcQSuHnJKzc4M8ZP8Eqa"
+        h160 = base58checkdecode(UInt8.(collect(address_1)))[2:end]
+        p2pkh_script_pubkey = Bitcoin.p2pkh_script(h160)
+        @test script2address(p2pkh_script_pubkey, false) == address_1
+        address_2 = "mrAjisaT4LXL5MzE81sfcDYKU3wqWSvf9q"
+        @test script2address(p2pkh_script_pubkey, true) == address_2
+        address_3 = "3CLoMMyuoDQTPRD3XYZtCvgvkadrAdvdXh"
+        h160 = base58checkdecode(UInt8.(collect(address_3)))[2:end]
+        p2sh_script_pubkey = Bitcoin.p2sh_script(h160)
+        @test script2address(p2sh_script_pubkey, false) == address_3
+        address_4 = "2N3u1R6uwQfuobCqbCgBkpsgBxvr1tZpe7B"
+        @test script2address(p2sh_script_pubkey, true) == address_4
+    end
 end

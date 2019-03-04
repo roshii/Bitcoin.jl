@@ -779,7 +779,55 @@ Bug in implementation pops an extra value, prefix with OP_NOP as workaround
 """
 # TODO
 function op_checkmultisig(stack::StackType, z::Integer)
-    error("not implemented")
+    if length(stack) < 1
+        return false
+    end
+    n = Bitcoin.decode_num(pop!(stack))
+    if length(stack) < (n + 1)
+        return false
+    end
+    sec_pubkeys = []
+    for sec in 1:n
+        push!(sec_pubkeys, pop!(stack))
+    end
+    m = Bitcoin.decode_num(pop!(stack))
+    if length(stack) < (m + 1)
+        return false
+    end
+    der_signatures = []
+    for der in 1:m
+        # signature is assumed to be using SIGHASH_ALL
+        push!(der_signatures, pop!(stack)[1:end-1])
+    end
+    # OP_CHECKMULTISIG bug
+    pop!(stack)
+    try
+        points = S256Point[]
+        for sec in sec_pubkeys
+            push!(points, sec2point(sec))
+        end
+        sigs = Signature[]
+        for der in der_signatures
+            push!(sigs, der2sig(der))
+        end
+        for sig in sigs
+            if length(points) == 0
+                append!(stack, Bitcoin.encode_num(0))
+                return true
+            end
+            while length(points) > 0
+                point = popfirst!(points)
+                if verify(point, z, sig)
+                    break
+                end
+                println("not valid sig")
+            end
+        end
+        push!(stack, Bitcoin.encode_num(1))
+    catch
+        return false
+    end
+    return true
 end
 
 """

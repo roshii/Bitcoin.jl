@@ -18,6 +18,20 @@
                 point = secret * ECC.G
                 @test address(point, false, false) == mainnet_address
                 @test address(point, false, true) == testnet_address
+                @testset "P2PKH" begin
+                        h160 = hex2bytes("74d691da1574e6b3c192ecfb52cc8984ee7b6c56")
+                        want = "1BenRpVUFK65JFWcQSuHnJKzc4M8ZP8Eqa"
+                        @test h160_2_address(h160, false, "P2PKH") == want
+                        want = "mrAjisaT4LXL5MzE81sfcDYKU3wqWSvf9q"
+                        @test h160_2_address(h160, true, "P2PKH") == want
+                end
+                @testset "P2SH" begin
+                        h160 = hex2bytes("74d691da1574e6b3c192ecfb52cc8984ee7b6c56")
+                        want = "3CLoMMyuoDQTPRD3XYZtCvgvkadrAdvdXh"
+                        @test h160_2_address(h160, false, "P2SH") == want
+                        want = "2N3u1R6uwQfuobCqbCgBkpsgBxvr1tZpe7B"
+                        @test h160_2_address(h160, true, "P2SH") == want
+                end
         end
         @testset "WIF" begin
                 pk = PrivateKey(big(2)^256-big(2)^199)

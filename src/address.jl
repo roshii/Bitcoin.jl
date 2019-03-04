@@ -1,8 +1,3 @@
-const ADDRESS_PREFIX = Dict([
-    ("P2PKH", [0x6f, 0x00]),
-    ("P2SH", [0xc4, 0x05])
-])
-
 """
     Array{UInt8,1} -> String
 
@@ -11,7 +6,7 @@ Returns a String representing a Bitcoin address
 function h160_2_address(h160::Array{UInt8,1}, testnet::Bool=false, type::String="P2SH")
     testnet ? i = 1 : i = 2
     result = copy(h160)
-    result = pushfirst!(result, ADDRESS_PREFIX[type][i])
+    result = pushfirst!(result, SCRIPT_TYPES[type][i])
     return String(base58checkencode(result))
 end
 

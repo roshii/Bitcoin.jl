@@ -327,16 +327,24 @@ end
 Returns whether this transaction is a coinbase transaction or not
 """
 function iscoinbase(tx::Tx)
-    # check that there is exactly 1 input
     if length(tx.tx_ins) != 1
         return false
     end
-    # grab the first input
     input = tx.tx_ins[1]
-    # check that first input prev_tx is b'\x00' * 32 bytes
-    # check that first input prev_index is 0xffffffff
     if input.prev_tx != fill(0x00, 32) || input.prev_index != 0xffffffff
         return false
     end
     return true
+end
+
+"""
+Returns the height of the block this coinbase transaction is in
+Returns `nothing` if this transaction is not a coinbase transaction
+"""
+function coinbase_height(tx::Tx)
+    if !iscoinbase(tx)
+        return nothing
+    end
+    height_bytes = tx.tx_ins[1].script_sig.instructions[1]
+    return bytes2int(height_bytes, true)
 end

@@ -7,7 +7,8 @@ import Base.show
 export Tx, TxIn, TxOut, Script
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
        scriptevaluate, txfetch, txverify, txsigninput,
-       h160_2_address, script2address, iscoinbase
+       h160_2_address, script2address,
+       iscoinbase, coinbase_height
 
 const SIGHASH_ALL = 1
 const SIGHASH_NONE = 2

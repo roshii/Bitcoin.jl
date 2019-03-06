@@ -322,3 +322,21 @@ function txpushsignature(tx::Tx, input_index::Integer, z::Integer, sig::Signatur
     tx.tx_ins[input_index + 1].script_sig = script_sig
     return txinputverify(tx, input_index)
 end
+
+"""
+Returns whether this transaction is a coinbase transaction or not
+"""
+function iscoinbase(tx::Tx)
+    # check that there is exactly 1 input
+    if length(tx.tx_ins) != 1
+        return false
+    end
+    # grab the first input
+    input = tx.tx_ins[1]
+    # check that first input prev_tx is b'\x00' * 32 bytes
+    # check that first input prev_index is 0xffffffff
+    if input.prev_tx != fill(0x00, 32) || input.prev_index != 0xffffffff
+        return false
+    end
+    return true
+end

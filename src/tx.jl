@@ -322,3 +322,29 @@ function txpushsignature(tx::Tx, input_index::Integer, z::Integer, sig::Signatur
     tx.tx_ins[input_index + 1].script_sig = script_sig
     return txinputverify(tx, input_index)
 end
+
+"""
+Returns whether this transaction is a coinbase transaction or not
+"""
+function iscoinbase(tx::Tx)
+    if length(tx.tx_ins) != 1
+        return false
+    end
+    input = tx.tx_ins[1]
+    if input.prev_tx != fill(0x00, 32) || input.prev_index != 0xffffffff
+        return false
+    end
+    return true
+end
+
+"""
+Returns the height of the block this coinbase transaction is in
+Returns `nothing` if this transaction is not a coinbase transaction
+"""
+function coinbase_height(tx::Tx)
+    if !iscoinbase(tx)
+        return nothing
+    end
+    height_bytes = tx.tx_ins[1].script_sig.instructions[1]
+    return bytes2int(height_bytes, true)
+end

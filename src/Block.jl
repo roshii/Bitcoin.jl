@@ -91,3 +91,40 @@ Returns whether this block is signaling readiness for BIP141
 function bip141(block::Block)
     return block.version >> 1 & 1 == 1
 end
+
+"""
+Returns the proof-of-work target based on the bits
+
+    last byte is exponent
+    the first three bytes are the coefficient in little endian
+    the formula is: coefficient * 256**(exponent-3)
+"""
+function target(block::Block)
+    exponent = block.bits[end]
+    coefficient = bytes2int(block.bits[1:3], true)
+    return coefficient * big(256)^(exponent - 3)
+end
+
+"""
+Returns the block difficulty based on the bits
+
+    difficulty is (target of lowest difficulty) / (block's target)
+    lowest difficulty has bits that equal 0xffff001d
+"""
+function difficulty(block::Block)
+    lowest = 0xffff * big(256)^(0x1d - 3)
+    return div(lowest, target(block))
+end
+
+"""
+Returns whether this block satisfies proof of work
+
+    get the hash256 of the serialization of this block
+    interpret this hash as a little-endian number
+    return whether this integer is less than the target
+"""
+function check_pow(block::Block)
+    block_hash = hash(block)
+    proof = bytes2int(block_hash, true)
+    return proof < target(block)
+end

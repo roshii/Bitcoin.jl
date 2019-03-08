@@ -777,7 +777,6 @@ end
 Run CHECKSIG for each pair of signature and public key provided. All must match.
 Bug in implementation pops an extra value, prefix with OP_NOP as workaround
 """
-# TODO
 function op_checkmultisig(stack::StackType, z::Integer)
     if length(stack) < 1
         return false

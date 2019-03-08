@@ -29,3 +29,27 @@ function blockparse(s::IOBuffer)
     nonce = read(s, 4)
     return Block(version, prev_block, merkle_root, timestamp, bits, nonce)
 end
+
+"""
+Returns the 80 byte block header
+"""
+function serialize(block::Block)
+    result = int2bytes(block.version, 4, true)
+    prev_block = copy(block.prev_block)
+    append!(result, reverse!(prev_block))
+    merkle_root = copy(block.merkle_root)
+    append!(result, reverse!(merkle_root))
+    append!(result, int2bytes(block.timestamp, 4, true))
+    append!(result, block.bits)
+    append!(result, block.nonce)
+    return result
+end
+
+"""
+Returns the hash256 interpreted little endian of the block
+"""
+function hash(block::Block)
+    s = Bitcoin.serialize(block)
+    h256 = hash256(s)
+    return reverse!(h256)
+end

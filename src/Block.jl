@@ -53,3 +53,39 @@ function hash(block::Block)
     h256 = hash256(s)
     return reverse!(h256)
 end
+
+"""
+Human-readable hexadecimal of the block hash
+"""
+function id(block::Block)
+    return bytes2hex(hash(block))
+end
+
+"""
+Returns whether this block is signaling readiness for BIP9
+
+    # BIP9 is signalled if the top 3 bits are 001
+    # remember version is 32 bytes so right shift 29 (>> 29) and see if
+    # that is 001
+"""
+function bip9(block::Block)
+    return block.version >> 29 == 0b001
+end
+
+"""
+Returns whether this block is signaling readiness for BIP91
+    # BIP91 is signalled if the 5th bit from the right is 1
+    # shift 4 bits to the right and see if the last bit is 1
+"""
+function bip91(block::Block)
+    return block.version >> 4 & 1 == 1
+end
+
+"""
+Returns whether this block is signaling readiness for BIP141
+    # BIP91 is signalled if the 2nd bit from the right is 1
+    # shift 1 bit to the right and see if the last bit is 1
+"""
+function bip141(block::Block)
+    return block.version >> 1 & 1 == 1
+end

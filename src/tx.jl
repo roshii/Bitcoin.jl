@@ -125,6 +125,8 @@ function show(io::IO, z::TxOut)
 end
 
 """
+     txoutparse(s::IOBuffer) -> TxOut
+
 Takes a byte stream and parses the tx_output at the start
 return a TxOut object
 """
@@ -137,6 +139,8 @@ function txoutparse(s::Base.GenericIOBuffer)
 end
 
 """
+    txoutserialize(tx::TxOut) -> Array{UInt8,1}
+
 Returns the byte serialization of the transaction output
 """
 function txoutserialize(tx::TxOut)
@@ -314,6 +318,9 @@ function txsigninput(tx::Tx, input_index::Integer, private_key::PrivateKey)
     txpushsignature(tx, input_index, z, sig, private_key.𝑃)
 end
 
+"""
+Append Signature to the Script Pubkey of TxIn at index
+"""
 function txpushsignature(tx::Tx, input_index::Integer, z::Integer, sig::Signature, pubkey::S256Point)
     der = sig2der(sig)
     append!(der, int2bytes(SIGHASH_ALL))

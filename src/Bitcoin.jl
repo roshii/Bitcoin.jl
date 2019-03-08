@@ -3,8 +3,9 @@ module Bitcoin
 using ECC, Base58
 using SHA: sha1, sha256
 using Ripemd: ripemd160
+using Dates: unix2datetime
 import Base.show
-export Tx, TxIn, TxOut, Script
+export Tx, TxIn, TxOut, Script, Block
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
        scriptevaluate, txfetch, txverify, txsigninput,
        h160_2_address, script2address,
@@ -24,5 +25,6 @@ include("address.jl")
 include("op.jl")
 include("script.jl")
 include("tx.jl")
+include("Block.jl")
 
 end # module

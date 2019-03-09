@@ -14,6 +14,7 @@ ECC = "a99b485a-c5c8-540e-ab00-7a7265134077"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 Ripemd = "92ef3814-971d-54d3-b0c1-59b1d13fee15"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 
 [compat]
 ECC = "0.2.3"

@@ -4,6 +4,7 @@ using ECC, Base58
 using SHA: sha1, sha256
 using Ripemd: ripemd160
 using Dates: unix2datetime
+using Sockets
 import Base.show
 export Tx, TxIn, TxOut, Script, Block
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
@@ -27,5 +28,6 @@ include("op.jl")
 include("script.jl")
 include("tx.jl")
 include("Block.jl")
+include("network.jl")
 
 end # module

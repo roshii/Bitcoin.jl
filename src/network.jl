@@ -33,7 +33,7 @@ function io2envelope(s::IOBuffer, testnet::Bool=false)
         error("Connection reset!")
     end
     if magic != NETWORK_MAGIC[testnet]
-        error("magic is not right", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
+        error("magic is not right ", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
     end
     command = read(s, 12)
     first = findfirst(isequal(0x00), command)
@@ -46,4 +46,24 @@ function io2envelope(s::IOBuffer, testnet::Bool=false)
         error("checksum does not match ", calculated_checksum, " vs ", checksum)
     end
     return NetworkEnvelope(command, payload, testnet)
+end
+
+"""
+Returns the byte serialization of the entire network message
+"""
+function serialize(envelope::NetworkEnvelope)
+    result = copy(envelope.magic)
+    append!(result, envelope.command)
+    append!(result, fill(0x00, (12 - length(envelope.command))))
+    append!(result, int2bytes(length(envelope.payload), 4, true))
+    append!(result, hash256(envelope.payload)[1:4])
+    append!(result, envelope.payload)
+    return result
+end
+
+"""
+Returns a stream for parsing the payload
+"""
+function stream(envelope::NetworkEnvelope)
+    return IOBuffer(envelope.payload)
 end

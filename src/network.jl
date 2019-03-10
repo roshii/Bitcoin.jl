@@ -11,7 +11,6 @@ const NETWORK_MAGIC = Dict([
     (true, [0x0b, 0x11, 0x09, 0x07])
 ])
 
-
 struct NetworkEnvelope
     command::Array{UInt8,1}
     payload::Array{UInt8,1}
@@ -111,8 +110,6 @@ struct VersionMessage <: AbstractMessage
         DEFAULT["relay"])
 end
 
-
-
 """
 Serialize this message to send over the network
     version is 4 bytes little endian
@@ -148,3 +145,35 @@ function serialize(version::VersionMessage)
     version.relay ? append!(result, [0x01]) : append!(result, [0x00])
     return result
 end
+
+struct VerAckMessage <: AbstractMessage
+    VerAckMessage() = new()
+end
+
+payload2verack(io::IOBuffer) = VerAckMessage()
+
+serialize(::VerAckMessage) = UInt8[]
+
+struct PingMessage <: AbstractMessage
+    nonce::Array{UInt8,1}
+    PingMessage(nonce) = new(nonce)
+end
+
+payload2ping(io::IOBuffer) = PingMessage(read(io, 8))
+
+serialize(ping::PingMessage) = ping.nonce
+
+struct PongMessage <: AbstractMessage
+    nonce::Array{UInt8,1}
+    PongMessage(nonce) = new(nonce)
+end
+
+payload2pong(io::IOBuffer) = PongMessage(read(io, 8))
+
+serialize(pong::PongMessage) = pong.nonce
+
+const PARSE_PAYLOAD = Dict([
+    (b"verack", payload2verack),
+    (b"ping", payload2ping),
+    (b"pong", payload2pong)
+])

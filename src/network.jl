@@ -229,3 +229,26 @@ const PARSE_PAYLOAD = Dict([
     (b"pong", payload2pong),
     (b"headers", payload2headers)
 ])
+
+mutable struct GetDataMessage <: AbstractMessage
+    data::Array{Tuple{Integer,Array{UInt8,1}},1}
+    GetDataMessage(data::Array{Tuple{Integer,Array{UInt8,1}},1}=Tuple{Integer,Array{UInt8,1}}[]) = new(data)
+end
+
+import Base.append!
+
+function append!(x::GetDataMessage, type::Integer, identifier::Array{UInt8,1})
+    push!(x.data, (type, identifier))
+end
+
+function serialize(x::GetDataMessage)
+    # start with the number of items as a varint
+    result = encode_varint(length(x.data))
+    for e in x.data
+        # data type is 4 bytes little endian
+        append!(result, int2bytes(e[1], 4, true))
+        # identifier needs to be in little endian
+        append!(result, reverse!(copy(e[2])))
+    end
+    return result
+end

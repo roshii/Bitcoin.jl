@@ -34,6 +34,15 @@
                 gh = GetHeadersMessage(hex2bytes(block_hex))
                 @test bytes2hex(Bitcoin.serialize(gh)) == "7f11010001a35bd0ca2f4a88c4eda6d213e2378a5758dfcd6af437120000000000000000000000000000000000000000000000000000000000000000000000000000000000"
             end
+            @testset "GetData" begin
+                hex_msg = "020300000030eb2540c41025690160a1014c577061596e32e426b712c7ca00000000000000030000001049847939585b0652fba793661c361223446b6fc41089b8be00000000000000"
+                get_data = GetDataMessage()
+                block1 = hex2bytes("00000000000000cac712b726e4326e596170574c01a16001692510c44025eb30")
+                append!(get_data, Bitcoin.FILTERED_BLOCK_DATA_TYPE, block1)
+                block2 = hex2bytes("00000000000000beb88910c46f6b442312361c6693a7fb52065b583979844910")
+                append!(get_data, Bitcoin.FILTERED_BLOCK_DATA_TYPE, block2)
+                @test bytes2hex(Bitcoin.serialize(get_data)) == hex_msg
+            end
         end
         @testset "Parse" begin
             @testset "Headers" begin

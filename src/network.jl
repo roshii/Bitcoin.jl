@@ -172,8 +172,60 @@ payload2pong(io::IOBuffer) = PongMessage(read(io, 8))
 
 serialize(pong::PongMessage) = pong.nonce
 
+struct GetHeadersMessage <: AbstractMessage
+    version::Integer
+    num_hashes::Integer
+    start_block::Array{UInt8,1}
+    end_block::Array{UInt8,1}
+    GetHeadersMessage(version::Integer, num_hashes::Integer, start_block::Array{UInt8,1}, end_block::Array{UInt8,1}=fill(0x00, 32)) = new(version, num_hashes, start_block, end_block)
+end
+
+GetHeadersMessage(start_block::Array{UInt8,1}) = GetHeadersMessage(DEFAULT["version"], 1, start_block)
+
+"""
+Serialize this message to send over the network
+    protocol version is 4 bytes little-endian
+    number of hashes is a varint
+    start block is in little-endian
+    end block is also in little-endian
+"""
+function serialize(getheaders::GetHeadersMessage)
+    result = int2bytes(getheaders.version, 4, true)
+    append!(result, encode_varint(getheaders.num_hashes))
+    append!(result, reverse!(copy(getheaders.start_block)))
+    append!(result, reverse!(copy(getheaders.end_block)))
+    return result
+end
+
+struct HeadersMessage <: AbstractMessage
+    headers::Array{BlockHeader,1}
+    HeadersMessage(headers::Array{BlockHeader,1}) = new(headers)
+end
+
+"""
+    # number of headers is in a varint
+    # initialize the headers array
+    # loop through number of headers times
+    # add a header to the headers array by parsing the stream
+    # read the next varint (num_txs)
+    # num_txs should be 0 or raise a RuntimeError
+"""
+function payload2headers(io::IOBuffer)
+    num_headers = read_varint(io)
+    headers = BlockHeader[]
+    for i in 1:num_headers
+        push!(headers, io2blockheader(io))
+        num_txs = read_varint(io)
+        if num_txs != 0
+            error("number of txs not 0")
+        end
+    end
+    return HeadersMessage(headers)
+end
+
 const PARSE_PAYLOAD = Dict([
     (b"verack", payload2verack),
     (b"ping", payload2ping),
-    (b"pong", payload2pong)
+    (b"pong", payload2pong),
+    (b"headers", payload2headers)
 ])

@@ -6,8 +6,8 @@ using Ripemd: ripemd160
 using Dates: unix2datetime, datetime2unix, now
 using Sockets
 import Base.show
-export Tx, TxIn, TxOut, Script, Block,
-    VersionMessage
+export Tx, TxIn, TxOut, Script, BlockHeader,
+       VersionMessage, GetHeadersMessage
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
        scriptevaluate, txfetch, txverify, txsigninput,
        h160_2_address, script2address,

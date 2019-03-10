@@ -13,9 +13,9 @@ const NETWORK_MAGIC = Dict([
 
 
 struct NetworkEnvelope
-    command
-    payload
-    magic
+    command::Array{UInt8,1}
+    payload::Array{UInt8,1}
+    magic::Array{UInt8,1}
     NetworkEnvelope(command, payload, testnet=false) = new(command, payload, NETWORK_MAGIC[testnet])
 end
 
@@ -66,4 +66,85 @@ Returns a stream for parsing the payload
 """
 function stream(envelope::NetworkEnvelope)
     return IOBuffer(envelope.payload)
+end
+
+abstract type AbstractMessage end
+
+const DEFAULT = Dict([
+    ("version", 70015),
+    ("services", 0),
+    ("receiver_services", 0),
+    ("receiver_ip", fill(0x00, 4)),
+    ("receiver_port", 8333),
+    ("sender_services", 0),
+    ("sender_ip", fill(0x00, 4)),
+    ("sender_port", 8333),
+    ("latest_block", 0),
+    ("relay", true)
+])
+
+struct VersionMessage <: AbstractMessage
+    version::Integer
+    services::Integer
+    timestamp::Integer
+    receiver_services::Integer
+    receiver_ip::Array{UInt8,1}
+    receiver_port::Integer
+    sender_services::Integer
+    sender_ip::Array{UInt8,1}
+    sender_port::Integer
+    nonce::Array{UInt8,1}
+    user_agent::Array{UInt8,1}
+    latest_block::Integer
+    relay::Bool
+    VersionMessage(timestamp::Integer, nonce::Array{UInt8,1}) = new(
+        DEFAULT["version"],
+        DEFAULT["services"],
+        timestamp,
+        DEFAULT["receiver_services"],
+        DEFAULT["receiver_ip"], DEFAULT["receiver_port"],
+        DEFAULT["sender_services"],
+        DEFAULT["sender_ip"], DEFAULT["sender_port"],
+        nonce,
+        USER_AGENT,
+        DEFAULT["latest_block"],
+        DEFAULT["relay"])
+end
+
+
+
+"""
+Serialize this message to send over the network
+    version is 4 bytes little endian
+    services is 8 bytes little endian
+    timestamp is 8 bytes little endian
+    receiver services is 8 bytes little endian
+    IPV4 is 10 00 bytes and 2 ff bytes then receiver ip
+    receiver port is 2 bytes, little endian
+    sender services is 8 bytes little endian
+    IPV4 is 10 00 bytes and 2 ff bytes then sender ip
+    sender port is 2 bytes, little endian
+    latest block is 4 bytes little endian
+    relay is 00 if false, 01 if true
+"""
+function serialize(version::VersionMessage)
+    result = int2bytes(version.version, 4, true)
+    append!(result, int2bytes(version.services, 8, true))
+    append!(result, int2bytes(version.timestamp, 8, true))
+    append!(result, int2bytes(version.receiver_services, 8, true))
+    append!(result, fill(0x00, 10))
+    append!(result, [0xff, 0xff])
+    append!(result, version.receiver_ip)
+    append!(result, int2bytes(version.receiver_port, 2, true))
+    append!(result, int2bytes(version.sender_services, 8, true))
+    append!(result, fill(0x00, 10))
+    append!(result, [0xff, 0xff])
+    append!(result, version.sender_ip)
+    append!(result, int2bytes(version.sender_port, 2, true))
+    append!(result, version.nonce)
+    append!(result, encode_varint(length(version.user_agent)))
+    append!(result, version.user_agent)
+    append!(result, int2bytes(version.latest_block, 4, true))
+    version.relay ? append!(result, [0x01]) : append!(result, [0x00])
+    return result
 end

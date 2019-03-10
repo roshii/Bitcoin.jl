@@ -23,4 +23,10 @@
             @test Bitcoin.serialize(envelope) == msg
         end
     end
+    @testset "Message" begin
+        @testset "Version" begin
+            v = VersionMessage(0, fill(0x00, 8))
+            @test bytes2hex(Bitcoin.serialize(v)) == "7f11010000000000000000000000000000000000000000000000000000000000000000000000ffff000000008d20000000000000000000000000000000000000ffff000000008d200000000000000000102f626974636f696e2e6a6c3a302e312f0000000001"
+        end
+    end
 end

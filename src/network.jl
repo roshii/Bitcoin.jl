@@ -1,16 +1,3 @@
-const TX_DATA_TYPE = 1
-const BLOCK_DATA_TYPE = 2
-const FILTERED_BLOCK_DATA_TYPE = 3
-const COMPACT_BLOCK_DATA_TYPE = 4
-
-"""
-NETWORK_MAGIC is testnet if `true`
-"""
-const NETWORK_MAGIC = Dict([
-    (false, [0xf9, 0xbe, 0xb4, 0xd9])
-    (true, [0x0b, 0x11, 0x09, 0x07])
-])
-
 struct NetworkEnvelope
     command::Array{UInt8,1}
     payload::Array{UInt8,1}
@@ -69,15 +56,6 @@ end
 
 abstract type AbstractMessage end
 
-const DEFAULT = Dict([
-    ("version", 70015),
-    ("services", 0),
-    ("ip", fill(0x00, 4)),
-    ("port", 8333),
-    ("latest_block", 0),
-    ("relay", true)
-])
-
 struct Peer
     services::Integer
     ip::Array{UInt8,1}
@@ -85,7 +63,7 @@ struct Peer
     Peer(services::Integer, ip::Array{UInt8,1}, port::Integer) = new(services, ip, port)
 end
 
-Peer() = Peer(DEFAULT["services"], DEFAULT["ip"], DEFAULT["port"])
+Peer(testnet::Bool=false) = Peer(DEFAULT["services"], DEFAULT["ip"], DEFAULT["port"][testnet])
 
 struct VersionMessage <: AbstractMessage
     command::Array{UInt8,1}
@@ -262,17 +240,14 @@ mutable struct SimpleNode
     SimpleNode(host::Union{String,IPv4}, port::Integer, testnet::Bool=false, logging::Bool=false) = new(host, port, testnet, logging)
 end
 
-SimpleNode(host::Union{String,IPv4}, testnet::Bool=false) = SimpleNode(host, 18333, testnet)
+SimpleNode(host::Union{String,IPv4}, testnet::Bool=false) = SimpleNode(host, DEFAULT["port"][testnet], testnet)
 
 """
 Do a handshake with the other node. Handshake is sending a version message and getting a verack back.
 """
 function handshake(node::SimpleNode)
-    # create a version message
     version = VersionMessage()
-    # send the command
     send2node(node, version)
-    # wait for a verack message
     wait_for(node, version.command)
 end
 
@@ -280,13 +255,12 @@ end
 Send a message to the connected node
 """
 function send2node(node::SimpleNode, message::AbstractMessage)
-    # create a network envelope
-    envelope = NetworkEnvelope(
-    message.command, serialize(message), node.testnet)
+    envelope = NetworkEnvelope(message.command,
+                               serialize(message),
+                               node.testnet)
     if node.logging
         println("sending: ", envelope)
     end
-    # send the serialized envelope over the socket using sendall
     @async begin
         sock = connect(node.host, node.port)
         send(sock, serialize(envelope))
@@ -308,25 +282,17 @@ end
 Wait for one of the messages in the list
 """
 function wait_for(node::SimpleNode, expected::Array{UInt8,1})
-    # initialize the command we have, which should be None
     command = b""
-    # loop until the command is in the commands we want
     @async while command != expected
-        # get the next network message
         envelope = read_node(node)
-        # set the command to be evaluated
         command = envelope.command
-        # we know how to respond to version and ping, handle that here
         if command == VersionMessage.command
-            # send verack
             send2node(VerAckMessage())
         elseif command == PingMessage.command
-            # send pong
             send2node(PongMessage(envelope.payload))
         end
         return PARSE_PAYLOAD[command](stream(envelope))
     end
-    # return the envelope parsed as a member of the right message class
 end
 
 const PARSE_PAYLOAD = Dict([
@@ -334,14 +300,4 @@ const PARSE_PAYLOAD = Dict([
     (b"ping", payload2ping),
     (b"pong", payload2pong),
     (b"headers", payload2headers)
-])
-
-const COMMAND_TYPE = Dict([
-    (b"version", VersionMessage),
-    (b"verack", VerAckMessage),
-    (b"ping", PingMessage),
-    (b"pong", PongMessage),
-    (b"betheaders", GetHeadersMessage),
-    (b"headers", HeadersMessage),
-    (b"getdata", GetDataMessage)
 ])

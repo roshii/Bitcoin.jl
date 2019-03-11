@@ -7,7 +7,8 @@ using Dates: unix2datetime, datetime2unix, now
 using Sockets
 import Base.show
 export Tx, TxIn, TxOut, Script, BlockHeader,
-       VersionMessage, GetHeadersMessage, GetDataMessage
+       VersionMessage, GetHeadersMessage, GetDataMessage,
+       SimpleNode
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
        scriptevaluate, txfetch, txverify, txsigninput,
        h160_2_address, script2address,

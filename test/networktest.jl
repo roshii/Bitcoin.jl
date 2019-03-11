@@ -53,4 +53,10 @@
             end
         end
     end
+    @testset "Simple Node" begin
+        @testset "Handshake" begin
+            node = SimpleNode("tbtc.brane.cc", true)
+            Bitcoin.handshake(node)
+        end
+    end
 end

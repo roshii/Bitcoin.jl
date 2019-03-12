@@ -9,6 +9,13 @@ const SCRIPT_TYPES = Dict([
     ("P2SH", [0xc4, 0x05])
 ])
 
+# Block
+
+GENESIS_BLOCK_HASH = Dict([
+    (false, hex2bytes("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")),
+    (true, hex2bytes("000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"))
+])
+
 # Network
 
 const USER_AGENT = read(IOBuffer("/bitcoin.jl:0.1/"))

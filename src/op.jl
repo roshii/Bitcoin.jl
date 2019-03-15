@@ -871,7 +871,7 @@ function op_checksequenceverify(stack::StackType, version::Integer, sequence::In
     error("not implemented")
 end
 
-OP_CODE_FUNCTIONS = Dict([
+const OP_CODE_FUNCTIONS = Dict([
     (0,  op_0),
     (79,  op_1negate),
     (81,  op_1),
@@ -957,7 +957,7 @@ OP_CODE_FUNCTIONS = Dict([
     (184,  op_nop),
     (185,  op_nop)])
 
-OP_CODE_NAMES = Dict([
+const OP_CODE_NAMES = Dict([
     (0, "OP_0"),
     (76, "OP_PUSHDATA1"),
     (77, "OP_PUSHDATA2"),

@@ -1,6 +1,6 @@
-using Test, Bitcoin, ECC
+using Test, Bitcoin, ECC, Sockets
 
-tests = ["address", "op", "script", "helper", "tx", "block"]
+tests = ["network", "block", "address", "op", "script", "helper", "tx", "node"]
 
 for t ∈ tests
   include("$(t)test.jl")

@@ -18,19 +18,22 @@ GENESIS_BLOCK_HASH = Dict([
 
 # Network
 
-const USER_AGENT = read(IOBuffer("/bitcoin.jl:0.1/"))
+USER_AGENT = "/bitcoin.jl:0.1/"
 
 const DEFAULT = Dict([
     ("version", 70015),
-    ("services", 0),
-    ("ip", fill(0x00, 4)),
+    ("services", zero(UInt64)),
+    ("ip", ip"0.0.0.0"),
     ("port", Dict([(false, 8333),
                    (true, 18333)])),
     ("rpcport", Dict([(false, 8332),
                    (true, 18332)])),
-    ("latest_block", 0),
+    ("start_height", zero(UInt32)),
     ("relay", true)
 ])
+
+const IPV4_PREFIX = append!(fill(0x00, 10), [0xff, 0xff])
+
 const NODE_URL = "btc.brane.cc"
 
 const TX_DATA_TYPE = 1
@@ -42,6 +45,14 @@ const COMPACT_BLOCK_DATA_TYPE = 4
 NETWORK_MAGIC is testnet if `true`
 """
 const NETWORK_MAGIC = Dict([
-    (false, [0xf9, 0xbe, 0xb4, 0xd9])
-    (true, [0x0b, 0x11, 0x09, 0x07])
+    (false, 0xd9b4bef9)
+    (true, 0x0709110b)
+])
+
+SERVICES_NAME = Dict([
+    (0x0000000000000001, "NODE_NETWORK"),
+    (0x0000000000000002, "NODE_GETUTXO"),
+    (0x0000000000000004, "NODE_BLOOM"),
+    (0x0000000000000008, "NODE_WITNESS"),
+    (0x0000000000000400, "NODE_NETWORK_LIMITED")
 ])

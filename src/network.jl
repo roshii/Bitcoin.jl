@@ -1,134 +1,212 @@
+abstract type AbstractMessage end
+
 struct NetworkEnvelope
-    command::Array{UInt8,1}
+    magic::UInt32
+    command::String
+    length::UInt32
+    checksum::UInt32
     payload::Array{UInt8,1}
-    magic::Array{UInt8,1}
-    NetworkEnvelope(command, payload, testnet=false) = new(command, payload, NETWORK_MAGIC[testnet])
+    NetworkEnvelope(magic::UInt32, command::AbstractString, length::Integer, checksum::UInt32, payload::Array{UInt8,1}) = new(magic, command, length, checksum, payload)
 end
+
+NetworkEnvelope(command::AbstractString, payload::Array{UInt8,1}, testnet=false) = NetworkEnvelope(NETWORK_MAGIC[testnet], command, length(payload), reinterpret(UInt32, hash256(payload))[1], payload)
+NetworkEnvelope(command::AbstractString, payload::AbstractMessage, testnet=false) = NetworkEnvelope(command, serialize(payload), testnet)
 
 function show(io::IO, z::NetworkEnvelope)
-    print(io, String(z.command),
-          "\n", bytes2hex(z.payload))
+    print(io, "Network Envelope - ", z.command, "\n", z.length, " bytes, checksum ", string(z.checksum, base=16), " on network ", string(z.magic, base=16), "\n--------\n", bytes2hex(z.payload))
 end
 
 """
+    IOBuffer, Bool -> NetworkEnvelope
+
 Takes a stream and creates a NetworkEnvelope
 """
-function io2envelope(s::IOBuffer, testnet::Bool=false)
-    magic = read(s, 4)
-    if magic == UInt8[]
-        error("Connection reset!")
+function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
+    s = IOBuffer(bin)
+    try
+        global magic = reinterpret(UInt32, read(s, 4))[1]
+    catch BoundsError
+        error("Connection reset!", bytes2hex(bin))
     end
     if magic != NETWORK_MAGIC[testnet]
         error("magic is not right ", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
     end
-    command = read(s, 12)
-    first = findfirst(isequal(0x00), command)
-    command = command[1:first-1]
-    payload_length = bytes2int(read(s, 4))
-    checksum = read(s, 4)
+    command = strip(String(read(s, 12)), '\0')
+    payload_length = reinterpret(UInt32, read(s, 4))[1]
+    checksum = reinterpret(UInt32, read(s, 4))[1]
     payload = read(s, payload_length)
-    calculated_checksum = hash256(payload)[1:4]
+    calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
     if calculated_checksum != checksum
         error("checksum does not match ", calculated_checksum, " vs ", checksum)
     end
-    return NetworkEnvelope(command, payload, testnet)
+    return NetworkEnvelope(magic, command, payload_length, checksum, payload)
 end
 
 """
 Returns the byte serialization of the entire network message
 """
 function serialize(envelope::NetworkEnvelope)
-    result = copy(envelope.magic)
-    append!(result, envelope.command)
+    result = Array(reinterpret(UInt8, [htol(envelope.magic)]))
+    append!(result, UInt8.(collect(envelope.command)))
     append!(result, fill(0x00, (12 - length(envelope.command))))
     append!(result, int2bytes(length(envelope.payload), 4, true))
-    append!(result, hash256(envelope.payload)[1:4])
+    append!(result, int2bytes(envelope.checksum, 4, true))
     append!(result, envelope.payload)
-    return result
 end
 
-"""
-Returns a stream for parsing the payload
-"""
-function stream(envelope::NetworkEnvelope)
-    return IOBuffer(envelope.payload)
-end
-
-abstract type AbstractMessage end
+# """
+# Returns a stream for parsing the payload
+# """
+# function stream(envelope::NetworkEnvelope)
+#     return IOBuffer(envelope.payload)
+# end
 
 struct Peer
-    services::Integer
-    ip::Array{UInt8,1}
-    port::Integer
-    Peer(services::Integer, ip::Array{UInt8,1}, port::Integer) = new(services, ip, port)
+    time::UInt32
+    services::UInt64
+    ip::IPAddr
+    port::UInt16
+    Peer(services::Integer, ip::IPAddr, port::Integer, time::Integer=0) = new(time, services, ip, port)
 end
 
 Peer(testnet::Bool=false) = Peer(DEFAULT["services"], DEFAULT["ip"], DEFAULT["port"][testnet])
+Peer(ip::IPAddr, port::Integer) = Peer(DEFAULT["services"], ip, port)
 
-struct VersionMessage <: AbstractMessage
-    command::Array{UInt8,1}
-    version::Integer
-    services::Integer
-    timestamp::Integer
-    receiver::Peer
-    sender::Peer
-    nonce::Array{UInt8,1}
-    user_agent::Array{UInt8,1}
-    latest_block::Integer
-    relay::Bool
-    VersionMessage(version::Integer, services::Integer, timestamp::Integer, receiver::Peer, sender::Peer, nonce::Array{UInt8,1}, user_agent::Array{UInt8,1}, latest_block::Integer, relay::Bool) = new(b"version", version, services, timestamp, receiver, sender, nonce, user_agent, latest_block, relay)
+function show(io::IO, z::Peer)
+    print(io, z.services, "@", z.ip, ":", z.port)
 end
 
-VersionMessage(timestamp::Integer, nonce::Array{UInt8,1}) =
+"""
+    IPv4 -> Array{UInt8,1}
+
+Return an 16 bytes UInt8 array representing the IP address
+
+IPv6 address. Network byte order. The original client only supported IPv4 and
+only read the last 4 bytes to get the IPv4 address. However, the IPv4 address
+is written into the message as a 16 byte IPv4-mapped IPv6 address
+
+(12 bytes 00 00 00 00 00 00 00 00 00 00 FF FF, followed by the 4 bytes of the
+IPv4 address).
+"""
+function ip2bytes(ip::IPv4)
+    result = fill(0x00, 10)
+    append!(result, [0xff, 0xff])
+    append!(result, Array(reinterpret(UInt8, [hton(ip.host)])))
+end
+
+"""
+    Peer -> Array{UInt8,1}
+
+Returns the serialization of a Peer
+"""
+function serialize(peer::Peer, versionmessage::Bool=false)
+    result = UInt8[]
+    if !versionmessage
+        append!(result, Array(reinterpret(UInt8, [htol(peer.time)])))
+    end
+    append!(result, Array(reinterpret(UInt8, [htol(peer.services)])))
+    append!(result, ip2bytes(peer.ip))
+    append!(result, Array(reinterpret(UInt8, [hton(peer.port)])))
+end
+
+"""
+    parse_peer(payload::Array{UInt8,1}) -> Peer
+
+Parse Peer from bytes arrays
+"""
+function parse_peer(payload::Array{UInt8,1}, versionmessage::Bool=false)
+    io = IOBuffer(payload)
+    if versionmessage
+        time = ltoh(reinterpret(UInt32, read(io, 4))[1])
+    else
+        time = 0
+    end
+    services = ltoh(reinterpret(UInt64, read(io, 8))[1])
+    ip_bytes = read(io, 16)
+    if ip_bytes[1:12] == IPV4_PREFIX
+        ip = IPv4(ntoh(reinterpret(UInt32, ip_bytes[13:16])[1]))
+    else
+        ip = IPv4(ntoh(reinterpret(UInt128, ip_bytes)[1]))
+    end
+    port = ntoh(reinterpret(UInt16, read(io, 8))[1])
+    Peer(services, ip, port, time)
+end
+
+struct VersionMessage <: AbstractMessage
+    command::String
+    version::UInt32
+    services::UInt64
+    timestamp::UInt64
+    receiver::Peer
+    sender::Peer
+    nonce::UInt64
+    user_agent::String
+    start_height::UInt32
+    relay::Bool
+    VersionMessage(version::Integer, services::Integer, timestamp::Integer, receiver::Peer, sender::Peer, nonce::Integer, user_agent::String, start_height::Integer, relay::Bool) = new("version", version, services, timestamp, receiver, sender, nonce, user_agent, start_height, relay)
+end
+
+VersionMessage(timestamp::UInt64, nonce::UInt64, testnet::Bool=false) =
     VersionMessage(DEFAULT["version"],
                    DEFAULT["services"],
                    timestamp,
-                   Peer(), Peer(),
+                   Peer(testnet), Peer(testnet),
                    nonce,
                    USER_AGENT,
-                   DEFAULT["latest_block"],
+                   DEFAULT["start_height"],
                    DEFAULT["relay"])
-VersionMessage() = VersionMessage(Int(round(datetime2unix(now()))), rand(UInt8, 8))
+VersionMessage(testnet::Bool=false) =
+    VersionMessage(UInt64(round(time())), rand(UInt64), testnet)
+
+function show(io::IO, z::VersionMessage)
+    print(io, "Version Message\n--------\nVersion : ",
+            z.version, " - User Agent : ", String(z.user_agent),
+            "\nServices : ", z.services, " - Relay : ", z.relay,
+            "\nTime Stamp : ", unix2datetime(z.timestamp),
+            "\nLatest Block : ", string(z.start_height, base=16),
+            "\nReceiver : ", z.receiver,
+            "\nSender : ", z.sender)
+end
 
 """
+    serialize(version::VersionMessage) -> Array{UInt8,1}
+
 Serialize this message to send over the network
-    version is 4 bytes little endian
-    services is 8 bytes little endian
-    timestamp is 8 bytes little endian
-    receiver services is 8 bytes little endian
-    IPV4 is 10 00 bytes and 2 ff bytes then receiver ip
-    receiver port is 2 bytes, little endian
-    sender services is 8 bytes little endian
-    IPV4 is 10 00 bytes and 2 ff bytes then sender ip
-    sender port is 2 bytes, little endian
-    latest block is 4 bytes little endian
-    relay is 00 if false, 01 if true
 """
 function serialize(version::VersionMessage)
-    result = int2bytes(version.version, 4, true)
-    append!(result, int2bytes(version.services, 8, true))
-    append!(result, int2bytes(version.timestamp, 8, true))
-    append!(result, int2bytes(version.receiver.services, 8, true))
-    append!(result, fill(0x00, 10))
-    append!(result, [0xff, 0xff])
-    append!(result, version.receiver.ip)
-    append!(result, int2bytes(version.receiver.port, 2, true))
-    append!(result, int2bytes(version.sender.services, 8, true))
-    append!(result, fill(0x00, 10))
-    append!(result, [0xff, 0xff])
-    append!(result, version.sender.ip)
-    append!(result, int2bytes(version.sender.port, 2, true))
-    append!(result, version.nonce)
-    append!(result, encode_varint(length(version.user_agent)))
-    append!(result, version.user_agent)
-    append!(result, int2bytes(version.latest_block, 4, true))
+    result = Array(reinterpret(UInt8, [htol(version.version)]))
+    append!(result, Array(reinterpret(UInt8, [htol(version.services)])))
+    append!(result, Array(reinterpret(UInt8, [htol(version.timestamp)])))
+    append!(result, serialize(version.receiver, true))
+    append!(result, serialize(version.sender, true))
+    append!(result, Array(reinterpret(UInt8, [htol(version.nonce)])))
+    append!(result, serialize(VarString(version.user_agent)))
+    append!(result, Array(reinterpret(UInt8, [htol(version.start_height)])))
     version.relay ? append!(result, [0x01]) : append!(result, [0x00])
     return result
 end
 
+"""
+    serialize(version::VersionMessage) -> Array{UInt8,1}
+
+"""
+function payload2version(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
+    version = ltoh(reinterpret(UInt32, read(io, 4))[1])
+    services = ltoh(reinterpret(UInt64, read(io, 8))[1])
+    timestamp = ltoh(reinterpret(UInt64, read(io, 8))[1])
+    sender = parse_peer(read(io, 26))
+    receiver = parse_peer(read(io, 26))
+    nonce = ltoh(reinterpret(UInt64, read(io, 8))[1])
+    user_agent = io2varstring(io).str
+    start_height = ltoh(reinterpret(UInt32, read(io, 4))[1])
+    relay = Bool(read(io, 1)[1])
+    VersionMessage(version, services, timestamp, receiver, sender, nonce, user_agent, start_height, relay)
+end
+
 struct VerAckMessage <: AbstractMessage
-    command::Array{UInt8,1}
-    VerAckMessage() = new(b"verack")
+    command::String
+    VerAckMessage() = new("verack")
 end
 
 payload2verack(io::IOBuffer) = VerAckMessage()
@@ -136,9 +214,9 @@ payload2verack(io::IOBuffer) = VerAckMessage()
 serialize(::VerAckMessage) = UInt8[]
 
 struct PingMessage <: AbstractMessage
-    command::Array{UInt8,1}
+    command::String
     nonce::Array{UInt8,1}
-    PingMessage(nonce) = new(b"ping", nonce)
+    PingMessage(nonce) = new("ping", nonce)
 end
 
 payload2ping(io::IOBuffer) = PingMessage(read(io, 8))
@@ -146,9 +224,9 @@ payload2ping(io::IOBuffer) = PingMessage(read(io, 8))
 serialize(ping::PingMessage) = ping.nonce
 
 struct PongMessage <: AbstractMessage
-    command::Array{UInt8,1}
+    command::String
     nonce::Array{UInt8,1}
-    PongMessage(nonce) = new(b"pong", nonce)
+    PongMessage(nonce) = new("pong", nonce)
 end
 
 payload2pong(io::IOBuffer) = PongMessage(read(io, 8))
@@ -156,12 +234,12 @@ payload2pong(io::IOBuffer) = PongMessage(read(io, 8))
 serialize(pong::PongMessage) = pong.nonce
 
 struct GetHeadersMessage <: AbstractMessage
-    command::Array{UInt8,1}
+    command::String
     version::Integer
     num_hashes::Integer
     start_block::Array{UInt8,1}
     end_block::Array{UInt8,1}
-    GetHeadersMessage(version::Integer, num_hashes::Integer, start_block::Array{UInt8,1}, end_block::Array{UInt8,1}=fill(0x00, 32)) = new(b"getheaders", version, num_hashes, start_block, end_block)
+    GetHeadersMessage(version::Integer, num_hashes::Integer, start_block::Array{UInt8,1}, end_block::Array{UInt8,1}=fill(0x00, 32)) = new("getheaders", version, num_hashes, start_block, end_block)
 end
 
 GetHeadersMessage(start_block::Array{UInt8,1}) = GetHeadersMessage(DEFAULT["version"], 1, start_block)
@@ -182,9 +260,9 @@ function serialize(getheaders::GetHeadersMessage)
 end
 
 struct HeadersMessage <: AbstractMessage
-    command::Array{UInt8,1}
+    command::String
     headers::Array{BlockHeader,1}
-    HeadersMessage(headers::Array{BlockHeader,1}) = new(b"headers", headers)
+    HeadersMessage(headers::Array{BlockHeader,1}) = new("headers", headers)
 end
 
 """
@@ -210,9 +288,9 @@ end
 
 
 mutable struct GetDataMessage <: AbstractMessage
-    command::Array{UInt8,1}
+    command::String
     data::Array{Tuple{Integer,Array{UInt8,1}},1}
-    GetDataMessage(data::Array{Tuple{Integer,Array{UInt8,1}},1}=Tuple{Integer,Array{UInt8,1}}[]) = new(b"getdata", data)
+    GetDataMessage(data::Array{Tuple{Integer,Array{UInt8,1}},1}=Tuple{Integer,Array{UInt8,1}}[]) = new("getdata", data)
 end
 
 import Base.append!
@@ -230,74 +308,41 @@ function serialize(x::GetDataMessage)
     return result
 end
 
-using Sockets
-
-mutable struct SimpleNode
-    host::Union{String,IPv4}
-    port::Integer
-    testnet::Bool
-    logging::Bool
-    SimpleNode(host::Union{String,IPv4}, port::Integer, testnet::Bool=false, logging::Bool=false) = new(host, port, testnet, logging)
+mutable struct RejectMessage <: AbstractMessage
+    command::String
+    message::String
+    ccode::Char
+    reason::String
+    data::Array{UInt8,1}
+    RejectMessage(message::String, ccode::Char, reason::String, data::Array{UInt8,1}) = new("reject", message, ccode, reason, data)
 end
 
-SimpleNode(host::Union{String,IPv4}, testnet::Bool=false) = SimpleNode(host, DEFAULT["port"][testnet], testnet)
-
-"""
-Do a handshake with the other node. Handshake is sending a version message and getting a verack back.
-"""
-function handshake(node::SimpleNode)
-    version = VersionMessage()
-    send2node(node, version)
-    wait_for(node, version.command)
+function show(io::IO, z::RejectMessage)
+    print(io, "Reject Message\n--------\nMessage : ",
+            z.message, "\nccode : ", z.ccode,
+            "\nReason : ", z.reason, "\n", bytes2hex(z.data))
 end
 
 """
-Send a message to the connected node
+    payload2reject(payload::Array{UInt8,1}) -> RejectMessage
+
+Parse RejectMessage from NetworkEnvelope payload
 """
-function send2node(node::SimpleNode, message::AbstractMessage)
-    envelope = NetworkEnvelope(message.command,
-                               serialize(message),
-                               node.testnet)
-    if node.logging
-        println("sending: ", envelope)
-    end
-    @async begin
-        sock = connect(node.host, node.port)
-        send(sock, serialize(envelope))
-    end
+function payload2reject(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
+    message = io2varstring(io).str
+    ccode = Char(read(io, 1)[1])
+    reason = io2varstring(io).str
+    data = read(io)
+    RejectMessage(message, ccode, reason, data)
 end
 
-"""
-Read a message from the socket
-"""
-function read_node(node::SimpleNode)
-    envelope = io2envelope(stream(node), node.testnet)
-    if node.logging
-        print("receiving: ", envelope)
-    end
-    return envelope
-end
+PARSE_PAYLOAD = Dict([
+    ("version", payload2version),
+    ("verack", payload2verack),
+    ("ping", payload2ping),
+    ("pong", payload2pong),
+    ("headers", payload2headers),
+    ("reject", payload2reject)
 
-"""
-Wait for one of the messages in the list
-"""
-function wait_for(node::SimpleNode, expected::Array{UInt8,1})
-    command = b""
-    @async while command != expected
-        envelope = read_node(node)
-        command = envelope.command
-        if command == VersionMessage.command
-            send2node(VerAckMessage())
-        elseif command == PingMessage.command
-            send2node(PongMessage(envelope.payload))
-        end
-        return PARSE_PAYLOAD[command](stream(envelope))
-    end
-end
-
-const PARSE_PAYLOAD = Dict([
-    (b"verack", payload2verack),
-    (b"ping", payload2ping),
-    (b"pong", payload2pong),
-    (b"headers", payload2headers)
 ])

@@ -1,4 +1,11 @@
 """
+Double sha256 function
+"""
+function hash256(x::Array{UInt8, 1})
+    return sha256(sha256(x))
+end
+
+"""
 read_varint reads a variable integer from a stream
 """
  function read_varint(s::Base.GenericIOBuffer{Array{UInt8,1}})
@@ -39,9 +46,12 @@ Encodes an integer as a varint
     end
  end
 
-"""
-Double sha256 function
-"""
-function hash256(x::Array{UInt8, 1})
-    return sha256(sha256(x))
+struct VarString <: AbstractString
+    len::Integer
+    str::String
+    VarString(str::String) = new(length(str), str)
 end
+
+serialize(x::VarString) = append!(encode_varint(x.len), x.str)
+
+io2varstring(io::IOBuffer) = VarString(String(read(io, read_varint(io))))

@@ -4,10 +4,9 @@
         @test Bitcoin.handshake(node)
         Bitcoin.close!(node)
     end
-    # @testset "GetHeaders" begin
-    #     node = Node("btc.brane.cc", false)
-    #     Bitcoin.handshake(node)
-    #     Bitcoin.geatheaders(node, 100)
-    #     Bitcoin.close(node)
-    # end
+    @testset "GetHeaders" begin
+        node = Node("btc.brane.cc", false)
+        @test typeof(Bitcoin.getheaders(node, 1)) == Array{Bitcoin.BlockHeader,1}
+        Bitcoin.close!(node)
+    end
 end

@@ -53,7 +53,7 @@ end
 Returns the hash256 interpreted little endian of the block
 """
 function hash(block::BlockHeader)
-    s = Bitcoin.serialize(block)
+    s = serialize(block)
     h256 = hash256(s)
     return reverse!(h256)
 end

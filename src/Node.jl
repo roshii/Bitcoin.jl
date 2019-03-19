@@ -96,3 +96,57 @@ function handshake(node::Node)
         false
     end
 end
+
+
+"""
+    getheaders(node::Node, stop::Integer, start::Integer=1) -> Array{BlockHeader,1}
+
+Returns a list of blockheaders, from `start` to `stop` height
+"""
+function getheaders(node::Node, stop::Integer, start::Integer=1)
+    handshake(node)
+    last_block_hash = GENESIS_BLOCK_HASH[node.testnet]
+    current_height = start
+    result = BlockHeader[]
+    while current_height <= stop
+        try
+            msg = GetHeadersMessage(last_block_hash)
+            send2node(node, msg)
+            if bytesavailable(node.sock) > 0
+                raw = read(node.sock.buffer)
+                envelopes = io2envelope(raw, node.testnet)
+                for envelope in envelopes
+                    if envelope.command == "headers"
+                        headers = PARSE_PAYLOAD[envelope.command](envelope.payload)
+                        for header in headers.headers
+                            if !check_pow(header)
+                                error("bad proof of work at block ", id(header))
+                            end
+                            if (last_block_hash != GENESIS_BLOCK_HASH) && (header.prev_block != last_block_hash)
+                                error("discontinuous block at ", id(header))
+                            end
+                            if current_height % 2016 == 0
+                                println(id(header))
+                            end
+                            last_block_hash = hash(header)
+                            current_height += 1
+                            push!(result, header)
+                            if node.logging
+                                println(header)
+                            end
+                        end
+                    end
+                end
+            else
+                sleep(0.01)
+            end
+        catch e
+            if typeof(e) == InterruptException
+                return error("Interrupted")
+            end
+            println("Error ", e, " was raised, retrying...")
+            sleep(1)
+        end
+    end
+    result
+end

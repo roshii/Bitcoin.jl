@@ -17,29 +17,33 @@ function show(io::IO, z::NetworkEnvelope)
 end
 
 """
-    IOBuffer, Bool -> NetworkEnvelope
+    IOBuffer, Bool -> Array{NetworkEnvelope,1}
 
 Takes a stream and creates a NetworkEnvelope
 """
 function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
     s = IOBuffer(bin)
-    try
-        global magic = reinterpret(UInt32, read(s, 4))[1]
-    catch BoundsError
-        error("Connection reset!", bytes2hex(bin))
+    result = NetworkEnvelope[]
+    while bytesavailable(s) > 0
+        try
+            global magic = reinterpret(UInt32, read(s, 4))[1]
+        catch BoundsError
+            error("Connection reset!", bytes2hex(bin))
+        end
+        if magic != NETWORK_MAGIC[testnet]
+            error("magic is not right ", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
+        end
+        command = strip(String(read(s, 12)), '\0')
+        payload_length = reinterpret(UInt32, read(s, 4))[1]
+        checksum = reinterpret(UInt32, read(s, 4))[1]
+        payload = read(s, payload_length)
+        calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
+        if calculated_checksum != checksum
+            error("checksum does not match ", calculated_checksum, " vs ", checksum)
+        end
+        push!(result, NetworkEnvelope(magic, command, payload_length, checksum, payload))
     end
-    if magic != NETWORK_MAGIC[testnet]
-        error("magic is not right ", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
-    end
-    command = strip(String(read(s, 12)), '\0')
-    payload_length = reinterpret(UInt32, read(s, 4))[1]
-    checksum = reinterpret(UInt32, read(s, 4))[1]
-    payload = read(s, payload_length)
-    calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
-    if calculated_checksum != checksum
-        error("checksum does not match ", calculated_checksum, " vs ", checksum)
-    end
-    return NetworkEnvelope(magic, command, payload_length, checksum, payload)
+    result
 end
 
 """
@@ -209,7 +213,7 @@ struct VerAckMessage <: AbstractMessage
     VerAckMessage() = new("verack")
 end
 
-payload2verack(io::IOBuffer) = VerAckMessage()
+payload2verack(payload::Array{UInt8,1}) = VerAckMessage()
 
 serialize(::VerAckMessage) = UInt8[]
 
@@ -219,7 +223,7 @@ struct PingMessage <: AbstractMessage
     PingMessage(nonce) = new("ping", nonce)
 end
 
-payload2ping(io::IOBuffer) = PingMessage(read(io, 8))
+payload2ping(payload::Array{UInt8,1}) = PingMessage(payload)
 
 serialize(ping::PingMessage) = ping.nonce
 
@@ -229,13 +233,13 @@ struct PongMessage <: AbstractMessage
     PongMessage(nonce) = new("pong", nonce)
 end
 
-payload2pong(io::IOBuffer) = PongMessage(read(io, 8))
+payload2pong(payload::Array{UInt8,1}) = PongMessage(payload)
 
 serialize(pong::PongMessage) = pong.nonce
 
 struct GetHeadersMessage <: AbstractMessage
     command::String
-    version::Integer
+    version::UInt32
     num_hashes::Integer
     start_block::Array{UInt8,1}
     end_block::Array{UInt8,1}
@@ -273,7 +277,8 @@ end
     # read the next varint (num_txs)
     # num_txs should be 0 or raise a RuntimeError
 """
-function payload2headers(io::IOBuffer)
+function payload2headers(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
     num_headers = read_varint(io)
     headers = BlockHeader[]
     for i in 1:num_headers

@@ -1,5 +1,4 @@
 using Sockets
-import Sockets.connect, Base.close
 
 mutable struct Node
     host::Union{String,IPv4}
@@ -13,14 +12,16 @@ end
 Node(host::Union{String,IPv4}, testnet::Bool=false) = Node(host, DEFAULT["port"][testnet], testnet)
 
 """
-    connect(node::Node) -> TCPSocket
+    connect!(node::Node) -> TCPSocket
 
 Connect to the host `node.host` on port `node.port`.
 """
-function connect(node::Node)
+function connect!(node::Node)
     try
-        if node.sock.status == 6
+        if !isopen(node.sock)
             node.sock = connect(node.host, node.port)
+        else
+            node.sock
         end
     catch
         node.sock = connect(node.host, node.port)
@@ -28,16 +29,20 @@ function connect(node::Node)
 end
 
 """
-Close Node TCPSocket
+    close!(node::Node) -> TCPSocket
+
+Close Node's TCPSocket
 """
-function close(node::Node)
+function close!(node::Node)
     close(node.sock)
+    node.sock
 end
 
-"""
-    Node, AbstractMessage -> Task
 
-Send a message to the connected node
+"""
+    send2node(node::Node, message::T) -> Integers
+
+Send a message to the connected node, returns the numbers of bytes sent
 """
 function send2node(node::Node, message::T) where {T<:AbstractMessage}
     envelope = NetworkEnvelope(message.command,
@@ -46,48 +51,48 @@ function send2node(node::Node, message::T) where {T<:AbstractMessage}
     if node.logging
         println("sending: ", envelope)
     end
-    connect(node)
     write(node.sock, serialize(envelope))
 end
 
-
 """
-Wait for one of the messages in the list
-"""
-function read_node!(node::Node, expected::String, result::Any)
-    command = ""
-    while command != expected
-        line = read(node.sock)
-        # println(bytes2hex(line))
-        envelope = io2envelope(line, node.testnet)
-        # println(envelope)
-        command = envelope.command
-        msg = PARSE_PAYLOAD[command](envelope.payload)
-        println(msg)
-        if command == "version"
-            println("sending verack")
-            send2node(node, VerAckMessage())
-        elseif command == "ping"
-            send2node(node, PongMessage(envelope.payload))
-            println("sending pong")
-        end
-        push!(result, msg)
-    end
-end
+handshake(node::Node) -> Bool
 
-"""
-handshake(node::Node) -> Array{AbstractMessage,1}
-
-Do a handshake with the other node.
+Do a handshake with the other node, returns true if successful
 Handshake is sending a version message and getting a verack back.
 """
 function handshake(node::Node)
-    result = []
-    @sync begin
-        connect(node)
-        @async read_node!(node, "version", result)
-        @async send2node(node, VersionMessage())
+    try
+        connect!(node)
+        @async read(node.sock)
+        send2node(node, VersionMessage())
+        version, verack = false, false
+        while !(version && verack)
+            if bytesavailable(node.sock) > 0
+                raw = read(node.sock.buffer)
+                if node.logging
+                    println("Raw response: \n", bytes2hex(raw))
+                end
+                envelopes = io2envelope(raw, node.testnet)
+                for envelope in envelopes
+                    command = envelope.command
+                    msg = PARSE_PAYLOAD[command](envelope.payload)
+                    println("Parsed response: \n", msg)
+                    if command == "version"
+                        send2node(node, VerAckMessage())
+                        version = true
+                    elseif command == "verack"
+                        verack = true
+                    elseif command == "ping"
+                        send2node(node, PongMessage(envelope.payload))
+                    end
+                end
+            else
+                sleep(0.01)
+            end
+        end
+        true
+    catch e
+        println("Failed, error ", e, " was raised.")
+        false
     end
-    close(node)
-    result
 end

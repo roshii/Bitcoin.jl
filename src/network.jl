@@ -31,7 +31,7 @@ function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
             error("Connection reset!", bytes2hex(bin))
         end
         if magic != NETWORK_MAGIC[testnet]
-            error("magic is not right ", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
+            error("magic is not right ", magic, " vs ", NETWORK_MAGIC[testnet])
         end
         command = strip(String(read(s, 12)), '\0')
         payload_length = reinterpret(UInt32, read(s, 4))[1]
@@ -39,7 +39,7 @@ function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
         payload = read(s, payload_length)
         calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
         if calculated_checksum != checksum
-            error("checksum does not match ", calculated_checksum, " vs ", checksum)
+            error("Error parsing IO, calculated checksum does not match ", calculated_checksum, " vs ", checksum)
         end
         push!(result, NetworkEnvelope(magic, command, payload_length, checksum, payload))
     end

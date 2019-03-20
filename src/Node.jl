@@ -102,6 +102,7 @@ end
     getheaders(node::Node, stop::Integer, start::Integer=1) -> Array{BlockHeader,1}
 
 Returns a list of blockheaders, from `start` to `stop` height
+!!!Experimental function, not tested as it should
 """
 function getheaders(node::Node, stop::Integer, start::Integer=1)
     handshake(node)

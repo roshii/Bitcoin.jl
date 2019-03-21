@@ -14,18 +14,18 @@ read_varint reads a variable integer from a stream
      if i == [0xfd]
          # 0xfd means the next two bytes are the number
          readbytes!(s, i, 2)
-         return reinterpret(Int16, i)[1]
+         return reinterpret(UInt16, i)[1]
      elseif i == [0xfe]
          # 0xfe means the next four bytes are the number
          readbytes!(s, i, 4)
-         return reinterpret(Int32, i)[1]
+         return reinterpret(UInt32, i)[1]
      elseif i == [0xff]
          # 0xff means the next eight bytes are the number
          readbytes!(s, i, 8)
-         return reinterpret(Int64, i)[1]
+         return reinterpret(UInt64, i)[1]
      else
          # anything else is just the integer
-         return reinterpret(Int8, i)[1]
+         return reinterpret(UInt8, i)[1]
      end
  end
 

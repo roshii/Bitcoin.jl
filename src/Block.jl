@@ -132,8 +132,23 @@ function check_pow(block::BlockHeader)
     return proof < target(block)
 end
 
+"""
+    validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
+    -> Bool
+
+Gets the merkle root of the hashes and checks that it's
+the same as the merkle root of this block header.
+"""
+function validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
+    hashes = [reverse!(copy(h)) for h in hashes]
+    root = merkle_root(hashes)
+    reverse!(root) == block.merkle_root
+end
+
 struct Block <: AbstractBlock
+    magic::UInt32
+    size::UInt32
     header::BlockHeader
-    tx_hashes
-    merkle_tree
+    tx_counter
+    tx::Array{UInt8,1}
 end

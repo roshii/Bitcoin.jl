@@ -76,7 +76,9 @@ function handshake(node::Node)
                 for envelope in envelopes
                     command = envelope.command
                     msg = PARSE_PAYLOAD[command](envelope.payload)
-                    println("Parsed response: \n", msg)
+                    if node.logging
+                        println("Parsed response: \n", msg)
+                    end
                     if command == "version"
                         send2node(node, VerAckMessage())
                         version = true

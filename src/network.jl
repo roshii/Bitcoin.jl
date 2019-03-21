@@ -58,13 +58,6 @@ function serialize(envelope::NetworkEnvelope)
     append!(result, envelope.payload)
 end
 
-# """
-# Returns a stream for parsing the payload
-# """
-# function stream(envelope::NetworkEnvelope)
-#     return IOBuffer(envelope.payload)
-# end
-
 struct Peer
     time::UInt32
     services::UInt64
@@ -279,6 +272,10 @@ end
 """
 function payload2headers(payload::Array{UInt8,1})
     io = IOBuffer(payload)
+    payload2headers(io)
+end
+
+function payload2headers(io::IOBuffer)
     num_headers = read_varint(io)
     headers = BlockHeader[]
     for i in 1:num_headers
@@ -342,12 +339,47 @@ function payload2reject(payload::Array{UInt8,1})
     RejectMessage(message, ccode, reason, data)
 end
 
+mutable struct MerkleBlockMessage <: AbstractMessage
+    command::String
+    header::BlockHeader
+    tx_count::UInt32
+    hash_count::Unsigned
+    hashes::Array{Array{UInt8,1},1}
+    flag_byte_count::Unsigned
+    flags::Array{UInt8,1}
+    MerkleBlockMessage(header::BlockHeader, tx_count::Integer,
+                  hash_count, hashes::Array{Array{UInt8,1},1}, flag_byte_count,
+                  flags::Array{UInt8,1}) = new("merkleblock",
+                  header, tx_count, hash_count, hashes, flag_byte_count, flags)
+end
+
+function show(io::IO, z::MerkleBlockMessage)
+    print(io, "Merkle Block Message\n--------\nMessage : ",
+            z.header, "\ntx_count : ", z.tx_count,
+            " flag_byte_count : ", z.flag_byte_count)
+end
+
+function payload2merkleblock(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
+    header = io2blockheader(io)
+    tx_count = ltoh(reinterpret(UInt32, read(io, 4))[1])
+    hash_count = read_varint(io)
+    hashes = Array{UInt8,1}[]
+    for i in 1:hash_count
+         push!(hashes, read(io, 32))
+    end
+    flag_byte_count = read_varint(io)
+    flags = read(io, flag_byte_count)
+    MerkleBlockMessage(header, tx_count, hash_count, hashes, flag_byte_count, flags)
+end
+
 PARSE_PAYLOAD = Dict([
     ("version", payload2version),
     ("verack", payload2verack),
     ("ping", payload2ping),
     ("pong", payload2pong),
     ("headers", payload2headers),
+    ("merkleblock", payload2merkleblock),
     ("reject", payload2reject)
 
 ])

@@ -189,13 +189,13 @@ function right_exists(tree::MerkleTree)
 end
 
 """
-    populate!(tree::MerkleTree, flag_bits::Array{UInt8,1},
+    populate!(tree::MerkleTree, flag_bits::Array{Bool,1},
               hashes::Array{Array{UInt8,1},1})
     -> Nothing
 
 Fills a Merkle Tree with a list of hashes
 """
-function populate!(tree::MerkleTree, flag_bits::Array{UInt8,1}, hashes::Array{Array{UInt8,1},1})
+function populate!(tree::MerkleTree, flag_bits::Array{Bool,1}, hashes::Array{Array{UInt8,1},1})
     while root(tree) == nothing
         if is_leaf(tree)
             popfirst!(flag_bits)
@@ -204,7 +204,7 @@ function populate!(tree::MerkleTree, flag_bits::Array{UInt8,1}, hashes::Array{Ar
         else
             left_hash = get_left_node(tree)
             if left_hash == nothing
-                if popfirst!(flag_bits) == 0
+                if !(popfirst!(flag_bits))
                     set_current_node!(tree, popfirst!(hashes))
                     up!(tree)
                 else
@@ -228,7 +228,7 @@ function populate!(tree::MerkleTree, flag_bits::Array{UInt8,1}, hashes::Array{Ar
         error("hashes not all consumed ", length(hashes))
     end
     for flag_bit in flag_bits
-        if flag_bit != 0
+        if flag_bit
             error("flag bits not all consumed")
         end
     end

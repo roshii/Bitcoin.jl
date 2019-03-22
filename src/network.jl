@@ -346,10 +346,10 @@ mutable struct MerkleBlockMessage <: AbstractMessage
     hash_count::Unsigned
     hashes::Array{Array{UInt8,1},1}
     flag_byte_count::Unsigned
-    flags::Array{UInt8,1}
+    flags::Array{Bool,1}
     MerkleBlockMessage(header::BlockHeader, tx_count::Integer,
                   hash_count, hashes::Array{Array{UInt8,1},1}, flag_byte_count,
-                  flags::Array{UInt8,1}) = new("merkleblock",
+                  flags::Array{Bool,1}) = new("merkleblock",
                   header, tx_count, hash_count, hashes, flag_byte_count, flags)
 end
 
@@ -357,6 +357,21 @@ function show(io::IO, z::MerkleBlockMessage)
     print(io, "Merkle Block Message\n--------\nMessage : ",
             z.header, "\ntx_count : ", z.tx_count,
             " flag_byte_count : ", z.flag_byte_count)
+end
+
+"""
+    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+
+Returns an Array{Bool,1} representing bits
+"""
+function bytes2flags(bytes::Array{UInt8,1})
+    result = Bool[]
+    for byte in bytes
+        for i in 0:7
+            push!(result, (byte & (0x01 << i)) != 0)
+        end
+    end
+    result
 end
 
 function payload2merkleblock(payload::Array{UInt8,1})
@@ -369,7 +384,8 @@ function payload2merkleblock(payload::Array{UInt8,1})
          push!(hashes, read(io, 32))
     end
     flag_byte_count = read_varint(io)
-    flags = read(io, flag_byte_count)
+    flag_byte = read(io, flag_byte_count)
+    flags = bytes2flags(flag_byte)
     MerkleBlockMessage(header, tx_count, hash_count, hashes, flag_byte_count, flags)
 end
 

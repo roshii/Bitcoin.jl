@@ -67,7 +67,7 @@
                 s = hex2bytes(hex_msg)
                 msg = Bitcoin.PARSE_PAYLOAD["merkleblock"](s)
                 @test length(msg.hashes) == 4
-                @test msg.flags == [0x1d]
+                @test msg.flags == [true, false, true, true, true, false, false, false]
             end
         end
     end

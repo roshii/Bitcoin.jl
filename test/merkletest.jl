@@ -77,7 +77,7 @@
                 "f9dbfafc3af3400954975da24eb325e326960a25b87fffe23eef3e7ed2fb610e"]
             tree = Bitcoin.MerkleTree(length(hex_hashes))
             hashes = [hex2bytes(h) for h in hex_hashes]
-            Bitcoin.populate!(tree, fill(0x01, 31), hashes)
+            Bitcoin.populate!(tree, fill(true, 31), hashes)
             root = "597c4bafe3832b17cbbabe56f878f4fc2ad0f6a402cee7fa851a9cb205f87ed1"
             @test bytes2hex(Bitcoin.root(tree)) == root
 
@@ -89,7 +89,7 @@
                 "62af110031e29de1efcad103b3ad4bec7bdcf6cb9c9f4afdd586981795516577"]
             tree = Bitcoin.MerkleTree(length(hex_hashes))
             hashes = [hex2bytes(h) for h in hex_hashes]
-            Bitcoin.populate!(tree, fill(0x01, 11), hashes)
+            Bitcoin.populate!(tree, fill(true, 11), hashes)
             root = "a8e8bd023169b81bc56854137a135b97ef47a6a7237f4c6e037baed16285a5ab"
             @test bytes2hex(Bitcoin.root(tree)) == root
         end

@@ -374,6 +374,11 @@ function bytes2flags(bytes::Array{UInt8,1})
     result
 end
 
+"""
+    payload2merkleblock(payload::Array{UInt8,1}) -> MerkleBlockMessage
+
+Parse MerkleBlockMessage from NetworkEnvelope payload
+"""
 function payload2merkleblock(payload::Array{UInt8,1})
     io = IOBuffer(payload)
     header = io2blockheader(io)
@@ -387,6 +392,16 @@ function payload2merkleblock(payload::Array{UInt8,1})
     flag_byte = read(io, flag_byte_count)
     flags = bytes2flags(flag_byte)
     MerkleBlockMessage(header, tx_count, hash_count, hashes, flag_byte_count, flags)
+end
+
+"""
+
+Returns true if MerkleBlockMessage is valid
+"""
+function is_valid(mb::MerkleBlockMessage)
+    tree = MerkleTree(mb.tx_count)
+    populate!(tree, mb.flags, mb.hashes)
+    root(tree) == mb.header.merkle_root
 end
 
 PARSE_PAYLOAD = Dict([

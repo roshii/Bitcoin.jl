@@ -26,8 +26,8 @@ Takes a byte stream and parses a block. Returns a Block object
 """
 function io2blockheader(s::IOBuffer)
     version = ltoh(reinterpret(UInt32, read(s, 4))[1])
-    prev_block = reverse!(read(s, 32))
-    merkle_root = reverse!(read(s, 32))
+    prev_block = read(s, 32)
+    merkle_root = read(s, 32)
     timestamp = ltoh(reinterpret(UInt32, read(s, 4))[1])
     bits = ltoh(reinterpret(UInt32, read(s, 4))[1])
     nonce = ltoh(reinterpret(UInt32, read(s, 4))[1])
@@ -40,9 +40,8 @@ Returns the 80 byte block header
 function serialize(block::BlockHeader)
     result = Array(reinterpret(UInt8, [htol(block.version)]))
     prev_block = copy(block.prev_block)
-    append!(result, reverse!(prev_block))
-    merkle_root = copy(block.merkle_root)
-    append!(result, reverse!(merkle_root))
+    append!(result, prev_block)
+    append!(result, block.merkle_root)
     append!(result, Array(reinterpret(UInt8, [htol(block.timestamp)])))
     append!(result, Array(reinterpret(UInt8, [htol(block.bits)])))
     append!(result, Array(reinterpret(UInt8, [htol(block.nonce)])))
@@ -142,7 +141,7 @@ the same as the merkle root of this block header.
 function validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
     hashes = [reverse!(copy(h)) for h in hashes]
     root = merkle_root(hashes)
-    reverse!(root) == block.merkle_root
+    merkle_root(hashes) == block.merkle_root
 end
 
 struct Block <: AbstractBlock

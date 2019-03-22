@@ -62,12 +62,19 @@
                 headers = Bitcoin.PARSE_PAYLOAD["headers"](s)
                 @test length(headers.headers) == 2
             end
-            @testset "MerkleBlock" begin
-                hex_msg = "0100000082bb869cf3a793432a66e826e05a6fc37469f8efb7421dc880670100000000007f16c5962e8bd963659c793ce370d95f093bc7e367117b3c30c1f8fdd0d9728776381b4d4c86041b554b852907000000043612262624047ee87660be1a707519a443b1c1ce3d248cbfc6c15870f6c5daa2019f5b01d4195ecbc9398fbf3c3b1fa9bb3183301d7a1fb3bd174fcfa40a2b6541ed70551dd7e841883ab8f0b16bf04176b7d1480e4f0af9f3d4c3595768d06820d2a7bc994987302e5b1ac80fc425fe25f8b63169ea78e68fbaaefa59379bbf011d"
+        end
+        @testset "MerkleBlock" begin
+            hex_msg = "0100000082bb869cf3a793432a66e826e05a6fc37469f8efb7421dc880670100000000007f16c5962e8bd963659c793ce370d95f093bc7e367117b3c30c1f8fdd0d9728776381b4d4c86041b554b852907000000043612262624047ee87660be1a707519a443b1c1ce3d248cbfc6c15870f6c5daa2019f5b01d4195ecbc9398fbf3c3b1fa9bb3183301d7a1fb3bd174fcfa40a2b6541ed70551dd7e841883ab8f0b16bf04176b7d1480e4f0af9f3d4c3595768d06820d2a7bc994987302e5b1ac80fc425fe25f8b63169ea78e68fbaaefa59379bbf011d"
+            @testset "Parse" begin
                 s = hex2bytes(hex_msg)
                 msg = Bitcoin.PARSE_PAYLOAD["merkleblock"](s)
                 @test length(msg.hashes) == 4
                 @test msg.flags == [true, false, true, true, true, false, false, false]
+            end
+            @testset "Is Valid" begin
+                s = hex2bytes(hex_msg)
+                msg = Bitcoin.PARSE_PAYLOAD["merkleblock"](s)
+                @test Bitcoin.is_valid(msg)
             end
         end
     end

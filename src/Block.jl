@@ -3,12 +3,12 @@ import Base.hash
 abstract type AbstractBlock end
 
 struct BlockHeader <: AbstractBlock
-    version::Integer
+    version::UInt32
     prev_block::Array{UInt8,1}
     merkle_root::Array{UInt8,1}
-    timestamp::Integer
-    bits::Array{UInt8,1}
-    nonce::Array{UInt8,1}
+    timestamp::UInt32
+    bits::UInt32
+    nonce::UInt32
     BlockHeader(version, prev_block, merkle_root, timestamp, bits, nonce) = new(version, prev_block, merkle_root, timestamp, bits, nonce)
 end
 
@@ -17,20 +17,20 @@ function show(io::IO, z::BlockHeader)
             "\nPrevious Block : ", bytes2hex(z.prev_block),
             "\nMerkle Root : ", bytes2hex(z.merkle_root),
             "\nTime Stamp : ", unix2datetime(z.timestamp),
-            "\nBits : ", bytes2hex(z.bits),
-            "\nNonce : ", bytes2hex(z.nonce))
+            "\nBits : ", z.bits,
+            "\nNonce : ", z.nonce)
 end
 
 """
 Takes a byte stream and parses a block. Returns a Block object
 """
 function io2blockheader(s::IOBuffer)
-    version = bytes2int(read(s, 4), true)
-    prev_block = reverse!(read(s, 32))
-    merkle_root = reverse!(read(s, 32))
-    timestamp = bytes2int(read(s, 4), true)
-    bits = read(s, 4)
-    nonce = read(s, 4)
+    version = ltoh(reinterpret(UInt32, read(s, 4))[1])
+    prev_block = read(s, 32)
+    merkle_root = read(s, 32)
+    timestamp = ltoh(reinterpret(UInt32, read(s, 4))[1])
+    bits = ltoh(reinterpret(UInt32, read(s, 4))[1])
+    nonce = ltoh(reinterpret(UInt32, read(s, 4))[1])
     return BlockHeader(version, prev_block, merkle_root, timestamp, bits, nonce)
 end
 
@@ -38,15 +38,13 @@ end
 Returns the 80 byte block header
 """
 function serialize(block::BlockHeader)
-    result = int2bytes(block.version, 4, true)
+    result = Array(reinterpret(UInt8, [htol(block.version)]))
     prev_block = copy(block.prev_block)
-    append!(result, reverse!(prev_block))
-    merkle_root = copy(block.merkle_root)
-    append!(result, reverse!(merkle_root))
-    append!(result, int2bytes(block.timestamp, 4, true))
-    append!(result, block.bits)
-    append!(result, block.nonce)
-    return result
+    append!(result, prev_block)
+    append!(result, block.merkle_root)
+    append!(result, Array(reinterpret(UInt8, [htol(block.timestamp)])))
+    append!(result, Array(reinterpret(UInt8, [htol(block.bits)])))
+    append!(result, Array(reinterpret(UInt8, [htol(block.nonce)])))
 end
 
 """
@@ -104,8 +102,8 @@ Returns the proof-of-work target based on the bits
     the formula is: coefficient * 256**(exponent-3)
 """
 function target(block::BlockHeader)
-    exponent = block.bits[end]
-    coefficient = bytes2int(block.bits[1:3], true)
+    exponent = block.bits >> 24
+    coefficient = block.bits & 0x00ffffff
     return coefficient * big(256)^(exponent - 3)
 end
 
@@ -133,8 +131,23 @@ function check_pow(block::BlockHeader)
     return proof < target(block)
 end
 
+"""
+    validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
+    -> Bool
+
+Gets the merkle root of the hashes and checks that it's
+the same as the merkle root of this block header.
+"""
+function validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
+    hashes = [reverse!(copy(h)) for h in hashes]
+    root = merkle_root(hashes)
+    merkle_root(hashes) == block.merkle_root
+end
+
 struct Block <: AbstractBlock
+    magic::UInt32
+    size::UInt32
     header::BlockHeader
-    tx_hashes
-    merkle_tree
+    tx_counter
+    tx::Array{UInt8,1}
 end

@@ -31,7 +31,7 @@ function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
             error("Connection reset!", bytes2hex(bin))
         end
         if magic != NETWORK_MAGIC[testnet]
-            error("magic is not right ", bytes2hex(magic), " vs ", bytes2hex(NETWORK_MAGIC[testnet]))
+            error("magic is not right ", magic, " vs ", NETWORK_MAGIC[testnet])
         end
         command = strip(String(read(s, 12)), '\0')
         payload_length = reinterpret(UInt32, read(s, 4))[1]
@@ -39,7 +39,7 @@ function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
         payload = read(s, payload_length)
         calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
         if calculated_checksum != checksum
-            error("checksum does not match ", calculated_checksum, " vs ", checksum)
+            error("Error parsing IO, calculated checksum does not match ", calculated_checksum, " vs ", checksum)
         end
         push!(result, NetworkEnvelope(magic, command, payload_length, checksum, payload))
     end
@@ -57,13 +57,6 @@ function serialize(envelope::NetworkEnvelope)
     append!(result, int2bytes(envelope.checksum, 4, true))
     append!(result, envelope.payload)
 end
-
-# """
-# Returns a stream for parsing the payload
-# """
-# function stream(envelope::NetworkEnvelope)
-#     return IOBuffer(envelope.payload)
-# end
 
 struct Peer
     time::UInt32
@@ -279,6 +272,10 @@ end
 """
 function payload2headers(payload::Array{UInt8,1})
     io = IOBuffer(payload)
+    payload2headers(io)
+end
+
+function payload2headers(io::IOBuffer)
     num_headers = read_varint(io)
     headers = BlockHeader[]
     for i in 1:num_headers
@@ -342,12 +339,78 @@ function payload2reject(payload::Array{UInt8,1})
     RejectMessage(message, ccode, reason, data)
 end
 
+mutable struct MerkleBlockMessage <: AbstractMessage
+    command::String
+    header::BlockHeader
+    tx_count::UInt32
+    hash_count::Unsigned
+    hashes::Array{Array{UInt8,1},1}
+    flag_byte_count::Unsigned
+    flags::Array{Bool,1}
+    MerkleBlockMessage(header::BlockHeader, tx_count::Integer,
+                  hash_count, hashes::Array{Array{UInt8,1},1}, flag_byte_count,
+                  flags::Array{Bool,1}) = new("merkleblock",
+                  header, tx_count, hash_count, hashes, flag_byte_count, flags)
+end
+
+function show(io::IO, z::MerkleBlockMessage)
+    print(io, "Merkle Block Message\n--------\nMessage : ",
+            z.header, "\ntx_count : ", z.tx_count,
+            " flag_byte_count : ", z.flag_byte_count)
+end
+
+"""
+    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+
+Returns an Array{Bool,1} representing bits
+"""
+function bytes2flags(bytes::Array{UInt8,1})
+    result = Bool[]
+    for byte in bytes
+        for i in 0:7
+            push!(result, (byte & (0x01 << i)) != 0)
+        end
+    end
+    result
+end
+
+"""
+    payload2merkleblock(payload::Array{UInt8,1}) -> MerkleBlockMessage
+
+Parse MerkleBlockMessage from NetworkEnvelope payload
+"""
+function payload2merkleblock(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
+    header = io2blockheader(io)
+    tx_count = ltoh(reinterpret(UInt32, read(io, 4))[1])
+    hash_count = read_varint(io)
+    hashes = Array{UInt8,1}[]
+    for i in 1:hash_count
+         push!(hashes, read(io, 32))
+    end
+    flag_byte_count = read_varint(io)
+    flag_byte = read(io, flag_byte_count)
+    flags = bytes2flags(flag_byte)
+    MerkleBlockMessage(header, tx_count, hash_count, hashes, flag_byte_count, flags)
+end
+
+"""
+
+Returns true if MerkleBlockMessage is valid
+"""
+function is_valid(mb::MerkleBlockMessage)
+    tree = MerkleTree(mb.tx_count)
+    populate!(tree, mb.flags, mb.hashes)
+    root(tree) == mb.header.merkle_root
+end
+
 PARSE_PAYLOAD = Dict([
     ("version", payload2version),
     ("verack", payload2verack),
     ("ping", payload2ping),
     ("pong", payload2pong),
     ("headers", payload2headers),
+    ("merkleblock", payload2merkleblock),
     ("reject", payload2reject)
 
 ])

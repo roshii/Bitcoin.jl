@@ -24,5 +24,6 @@ include("tx.jl")
 include("Block.jl")
 include("network.jl")
 include("Node.jl")
+include("MerkleTree.jl")
 
 end # module

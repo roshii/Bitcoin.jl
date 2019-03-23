@@ -55,3 +55,18 @@ end
 serialize(x::VarString) = append!(encode_varint(x.len), x.str)
 
 io2varstring(io::IOBuffer) = VarString(String(read(io, read_varint(io))))
+
+"""
+    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+
+Returns an Array{Bool,1} representing bits
+"""
+function bytes2flags(bytes::Array{UInt8,1})
+    result = Bool[]
+    for byte in bytes
+        for i in 0:7
+            push!(result, (byte & (0x01 << i)) != 0)
+        end
+    end
+    result
+end

@@ -360,21 +360,6 @@ function show(io::IO, z::MerkleBlockMessage)
 end
 
 """
-    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
-
-Returns an Array{Bool,1} representing bits
-"""
-function bytes2flags(bytes::Array{UInt8,1})
-    result = Bool[]
-    for byte in bytes
-        for i in 0:7
-            push!(result, (byte & (0x01 << i)) != 0)
-        end
-    end
-    result
-end
-
-"""
     payload2merkleblock(payload::Array{UInt8,1}) -> MerkleBlockMessage
 
 Parse MerkleBlockMessage from NetworkEnvelope payload
@@ -402,6 +387,28 @@ function is_valid(mb::MerkleBlockMessage)
     tree = MerkleTree(mb.tx_count)
     populate!(tree, mb.flags, mb.hashes)
     root(tree) == mb.header.merkle_root
+end
+
+struct FilterAddMessage <: AbstractMessage
+    command::String
+    element_bytes::Unsigned
+    element::Array{UInt8,1}
+    FilterAddMessage(element_bytes::Unsigned, element::Array{UInt8,1}) = new("filteradd", element_bytes, element)
+end
+
+struct FilterClearMessage <: AbstractMessage
+    command::String
+    FilterClearMessage() = new("filterclear")
+end
+
+struct FilterLoadMessage <: AbstractMessage
+    command::String
+    n_filter_bytes::Unsigned
+    filter::Array{Bool,1}
+    n_hash_funcs::UInt32
+    n_tweak::UInt32
+    n_flags::UInt8
+    FilterLoadMessage(n_filter_bytes::Unsigned, filter::Array{Bool,1}, n_hash_funcs::UInt32, n_tweak::UInt32, n_flags::UInt8) = new("filterload", n_filter_bytes, filter, n_hash_funcs, n_tweak, n_flags)
 end
 
 PARSE_PAYLOAD = Dict([

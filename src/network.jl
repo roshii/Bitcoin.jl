@@ -411,6 +411,16 @@ struct FilterLoadMessage <: AbstractMessage
     FilterLoadMessage(n_filter_bytes::Unsigned, filter::Array{Bool,1}, n_hash_funcs::UInt32, n_tweak::UInt32, n_flags::UInt8) = new("filterload", n_filter_bytes, filter, n_hash_funcs, n_tweak, n_flags)
 end
 
+FilterLoadMessage(bf::BloomFilter, flag::UInt8=0x01) = FilterLoadMessage(bf.size, bf.bit_field, bf.function_count, bf.tweak, flag)
+
+function serialize(msg::FilterLoadMessage)
+    payload = encode_varint(msg.n_filter_bytes)
+    append!(payload, flags2bytes(msg.filter))
+    append!(payload, Array(reinterpret(UInt8, [htol(msg.n_hash_funcs)])))
+    append!(payload, Array(reinterpret(UInt8, [htol(msg.n_tweak)])))
+    append!(payload, msg.n_flags%UInt8)
+end
+
 PARSE_PAYLOAD = Dict([
     ("version", payload2version),
     ("verack", payload2verack),

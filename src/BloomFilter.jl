@@ -14,7 +14,7 @@ Add an item to the filter
 function add!(bf::BloomFilter, item)
     for i in 1:bf.function_count
         seed = (i-1) * BIP37_CONSTANT + bf.tweak
-        h = Murmur3.x86.hash32(item, seed%UInt32)
+        h = Murmur3.hash32(item, seed%UInt32)
         bit = mod(h, (bf.size * 8)) + 1
         bf.bit_field[bit] = 1
     end

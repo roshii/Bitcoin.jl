@@ -5,7 +5,6 @@ using SHA: sha1, sha256
 using Ripemd: ripemd160
 using Dates: unix2datetime, datetime2unix, now
 using Sockets
-using Murmur3
 import Base.show
 export Tx, TxIn, TxOut, Script, BlockHeader,
        VersionMessage, GetHeadersMessage, GetDataMessage,
@@ -27,5 +26,6 @@ include("BloomFilter.jl")
 include("network.jl")
 include("Node.jl")
 include("MerkleTree.jl")
+include("murmur3.jl")
 
 end # module

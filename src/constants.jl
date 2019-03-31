@@ -41,6 +41,24 @@ const BLOCK_DATA_TYPE = 2
 const FILTERED_BLOCK_DATA_TYPE = 3
 const COMPACT_BLOCK_DATA_TYPE = 4
 
+const DATA_MESSAGE_NAME = Dict([
+    (1, "MSG_TX"),
+    (2, "MSG_BLOCK"),
+    (3, "MSG_FILTERED_BLOCK"),
+    (4, "MSG_CMPCT_BLOCK"),
+    (5, "MSG_WITNESS_BLOCK"),
+    (6, "MSG_WITNESS_TX"),
+    (7, "MSG_FILTERED_WITNESS_BLOCK")])
+
+const DATA_MESSAGE_TYPE = Dict([
+    ("MSG_TX", 1),
+    ("MSG_BLOCK", 2),
+    ("MSG_FILTERED_BLOCK", 3),
+    ("MSG_CMPCT_BLOCK", 4),
+    ("MSG_WITNESS_BLOCK", 5),
+    ("MSG_WITNESS_TX", 6),
+    ("MSG_FILTERED_WITNESS_BLOCK", 7)])
+
 """
 NETWORK_MAGIC is testnet if `true`
 """

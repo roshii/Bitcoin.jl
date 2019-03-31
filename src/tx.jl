@@ -190,12 +190,16 @@ function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
     return Tx(version, inputs, outputs, locktime, testnet)
 end
 
+function payload2tx(payload::Array{UInt8,1})
+    txparse(IOBuffer(payload))
+end
+
 """
-    txserialize(tx::Tx) -> Array{UInt8,1}
+    serialize(tx::Tx) -> Array{UInt8,1}
 
 Returns the byte serialization of the transaction
 """
-function txserialize(tx::Tx)
+function serialize(tx::Tx)
     result = int2bytes(tx.version, 4, true)
     append!(result, encode_varint(length(tx.tx_ins)))
     for tx_in in tx.tx_ins
@@ -209,12 +213,16 @@ function txserialize(tx::Tx)
     return result
 end
 
+function txserialize(tx::Tx)
+    serialize(tx)
+end
+
 
 """
 Binary hash of the legacy serialization
 """
 function txhash(tx::Tx)
-    return reverse(hash256(txserialize(tx)))
+    return reverse(hash256(serialize(tx)))
 end
 
 """

@@ -21,10 +21,9 @@ end
 
 Takes a stream and creates a NetworkEnvelope
 """
-function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
-    s = IOBuffer(bin)
+function io2envelopes(s::IOBuffer, testnet::Bool=false)
     result = NetworkEnvelope[]
-    while bytesavailable(s) > 0
+    while !(bytesavailable(s) < 24)
         try
             global magic = reinterpret(UInt32, read(s, 4))[1]
         catch BoundsError
@@ -36,14 +35,53 @@ function io2envelope(bin::Array{UInt8,1}, testnet::Bool=false)
         command = strip(String(read(s, 12)), '\0')
         payload_length = reinterpret(UInt32, read(s, 4))[1]
         checksum = reinterpret(UInt32, read(s, 4))[1]
+        while bytesavailable(s) < payload_length
+            println("Awaiting data from remote node...")
+            sleep(0.02)
+        end
         payload = read(s, payload_length)
         calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
         if calculated_checksum != checksum
+            println("\n\nResult so far was : ", result,
+                    "\nLast message had command ", command,
+                    ", payload length ", payload_length,
+                    " and payload ", bytes2hex(payload))
             error("Error parsing IO, calculated checksum does not match ", calculated_checksum, " vs ", checksum)
         end
         push!(result, NetworkEnvelope(magic, command, payload_length, checksum, payload))
     end
     result
+end
+
+function io2envelopes(bin::Array{UInt8,1}, testnet::Bool=false)
+    s = IOBuffer(bin)
+    io2envelopes(s, testnet)
+end
+
+function io2envelope(s::IOBuffer, testnet::Bool=false)
+    if !(bytesavailable(s) < 24)
+        magic = reinterpret(UInt32, read(s, 4))[1]
+        if magic != NETWORK_MAGIC[testnet]
+            error("Network magic is not right!\nWe have received ", magic, " versus ", NETWORK_MAGIC[testnet])
+        end
+        command = strip(String(read(s, 12)), '\0')
+        payload_length = reinterpret(UInt32, read(s, 4))[1]
+        checksum = reinterpret(UInt32, read(s, 4))[1]
+        while bytesavailable(s) < payload_length
+            println("Buffer doesn't hold sufficient data to parse payoad, waiting for 5 s...")
+            sleep(5)
+        end
+        payload = read(s, payload_length)
+        calculated_checksum = reinterpret(UInt32, hash256(payload)[1:4])[1]
+        if calculated_checksum != checksum
+            println("\n\nResult so far was : ", result,
+            "\nLast message had command ", command,
+            ", payload length ", payload_length,
+            " and payload ", bytes2hex(payload))
+            error("Error parsing IO, calculated checksum does not match ", calculated_checksum, " vs ", checksum)
+        end
+        return NetworkEnvelope(magic, command, payload_length, checksum, payload)
+    end
 end
 
 """
@@ -91,6 +129,14 @@ function ip2bytes(ip::IPv4)
     append!(result, Array(reinterpret(UInt8, [hton(ip.host)])))
 end
 
+function bytes2ip(bin::Array{UInt8,1})
+    if bin[1:12] == IPV4_PREFIX
+        IPv4(ntoh(reinterpret(UInt32, bin[13:16])[1]))
+    else
+        IPv6(ntoh(reinterpret(UInt128, bin)[1]))
+    end
+end
+
 """
     Peer -> Array{UInt8,1}
 
@@ -119,12 +165,7 @@ function parse_peer(payload::Array{UInt8,1}, versionmessage::Bool=false)
         time = 0
     end
     services = ltoh(reinterpret(UInt64, read(io, 8))[1])
-    ip_bytes = read(io, 16)
-    if ip_bytes[1:12] == IPV4_PREFIX
-        ip = IPv4(ntoh(reinterpret(UInt32, ip_bytes[13:16])[1]))
-    else
-        ip = IPv4(ntoh(reinterpret(UInt128, ip_bytes)[1]))
-    end
+    ip = bytes2ip(read(io, 16))
     port = ntoh(reinterpret(UInt16, read(io, 8))[1])
     Peer(services, ip, port, time)
 end
@@ -360,21 +401,6 @@ function show(io::IO, z::MerkleBlockMessage)
 end
 
 """
-    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
-
-Returns an Array{Bool,1} representing bits
-"""
-function bytes2flags(bytes::Array{UInt8,1})
-    result = Bool[]
-    for byte in bytes
-        for i in 0:7
-            push!(result, (byte & (0x01 << i)) != 0)
-        end
-    end
-    result
-end
-
-"""
     payload2merkleblock(payload::Array{UInt8,1}) -> MerkleBlockMessage
 
 Parse MerkleBlockMessage from NetworkEnvelope payload
@@ -404,13 +430,133 @@ function is_valid(mb::MerkleBlockMessage)
     root(tree) == mb.header.merkle_root
 end
 
+struct FilterAddMessage <: AbstractMessage
+    command::String
+    element_bytes::Unsigned
+    element::Array{UInt8,1}
+    FilterAddMessage(element_bytes::Unsigned, element::Array{UInt8,1}) = new("filteradd", element_bytes, element)
+end
+
+struct FilterClearMessage <: AbstractMessage
+    command::String
+    FilterClearMessage() = new("filterclear")
+end
+
+struct FilterLoadMessage <: AbstractMessage
+    command::String
+    n_filter_bytes::Unsigned
+    filter::Array{Bool,1}
+    n_hash_funcs::UInt32
+    n_tweak::UInt32
+    n_flags::UInt8
+    FilterLoadMessage(n_filter_bytes::Unsigned, filter::Array{Bool,1}, n_hash_funcs::UInt32, n_tweak::UInt32, n_flags::UInt8) = new("filterload", n_filter_bytes, filter, n_hash_funcs, n_tweak, n_flags)
+end
+
+FilterLoadMessage(bf::BloomFilter, flag::UInt8=0x01) = FilterLoadMessage(bf.size, bf.bit_field, bf.function_count, bf.tweak, flag)
+
+function serialize(msg::FilterLoadMessage)
+    payload = encode_varint(msg.n_filter_bytes)
+    append!(payload, flags2bytes(msg.filter))
+    append!(payload, Array(reinterpret(UInt8, [htol(msg.n_hash_funcs)])))
+    append!(payload, Array(reinterpret(UInt8, [htol(msg.n_tweak)])))
+    append!(payload, msg.n_flags%UInt8)
+end
+
+struct SendHeadersMessage <: AbstractMessage
+    command::String
+    SendHeadersMessage() = new("sendheaders")
+end
+
+SendHeadersMessage(::Any) = SendHeadersMessage()
+
+struct InventoryVector
+    type::Integer
+    hash::Array{UInt8,1}
+    InventoryVector(type, hash) = new(type, hash)
+end
+
+function show(io::IO, z::InventoryVector)
+    print(io, DATA_MESSAGE_NAME[z.type],
+          " :\n", bytes2hex(z.hash))
+end
+
+function payload2inventoryvector(payload::Array{UInt8,1})
+    type = ltoh(reinterpret(UInt32, payload[1:4])[1])
+    hash = payload[5:26]
+    InventoryVector(type, hash)
+end
+
+struct InvMessage <: AbstractMessage
+    command::String
+    count::Integer
+    inventory::Array{InventoryVector,1}
+    InvMessage(inv_count::Integer, inventory::Array{InventoryVector,1}) = new("inv", inv_count, inventory)
+end
+
+function payload2inv(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
+    inv_count = read_varint(io)
+    inventory = InventoryVector[]
+    for i ∈ 1:inv_count
+        entry = payload2inventoryvector(read(io, 26))
+        push!(inventory, entry)
+    end
+    InvMessage(inv_count, inventory)
+end
+
+struct SendCmpctMessage <: AbstractMessage
+    command::String
+    announce::Bool
+    version::UInt64
+    SendCmpctMessage(announce::Bool, version::UInt64) = new("sendcmpct", announce, version)
+end
+
+function payload2sendcmpct(payload::Array{UInt8,1})
+    annouce = Bool(payload[1])
+    version = ltoh(reinterpret(UInt64, payload[2:9])[1])
+    SendCmpctMessage(annouce, version)
+end
+
+struct FeeFilterMessage <: AbstractMessage
+    command::String
+    feerate::UInt64
+    FeeFilterMessage(feerate::UInt64) = new("feefilter", feerate)
+end
+
+function payload2feefilter(payload::Array{UInt8,1})
+    feerate = ltoh(reinterpret(UInt64, payload[1:8])[1])
+    SendCmpctMessage(feerate)
+end
+
+struct AddrMessage <: AbstractMessage
+    n::Unsigned
+    addr::Array{IPAddr,1}
+    FeeFilterMessage(n::Integer, addr::Array{IPAddr,1}) = new("addr", n, addr)
+end
+
+function payload2addr(payload::Array{UInt8,1})
+    io = IOBuffer(payload)
+    n = read_varint(io)
+    addr = IPAddr[]
+    for _ ∈ 1:n
+        push!(addr, bytes2ip(read(io, 16)))
+    end
+    AddrMessage(n, addr)
+end
+
+
 PARSE_PAYLOAD = Dict([
-    ("version", payload2version),
-    ("verack", payload2verack),
+    ("addr", payload2addr),
+    ("feefilter", payload2feefilter),
+    ("headers", payload2headers),
+    ("inv", payload2inv),
+    ("merkleblock", payload2merkleblock),
     ("ping", payload2ping),
     ("pong", payload2pong),
-    ("headers", payload2headers),
-    ("merkleblock", payload2merkleblock),
-    ("reject", payload2reject)
-
+    ("reject", payload2reject),
+    ("sendcmpct", payload2sendcmpct),
+    ("sendheaders", SendHeadersMessage),
+    ("tx", payload2tx),
+    ("verack", payload2verack),
+    ("version", payload2version)
 ])

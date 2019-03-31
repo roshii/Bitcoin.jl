@@ -8,7 +8,7 @@ using Sockets
 import Base.show
 export Tx, TxIn, TxOut, Script, BlockHeader,
        VersionMessage, GetHeadersMessage, GetDataMessage,
-       Node
+       Node, BloomFilter
 export address, wif, txparse, txserialize, txid, txfee, txsighash,
        scriptevaluate, txfetch, txverify, txsigninput,
        h160_2_address, script2address,
@@ -22,8 +22,10 @@ include("op.jl")
 include("script.jl")
 include("tx.jl")
 include("Block.jl")
+include("BloomFilter.jl")
 include("network.jl")
 include("Node.jl")
 include("MerkleTree.jl")
+include("murmur3.jl")
 
 end # module

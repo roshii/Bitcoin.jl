@@ -55,3 +55,39 @@ end
 serialize(x::VarString) = append!(encode_varint(x.len), x.str)
 
 io2varstring(io::IOBuffer) = VarString(String(read(io, read_varint(io))))
+
+"""
+    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+
+Returns an Array{Bool,1} representing bits
+"""
+function bytes2flags(bytes::Array{UInt8,1})
+    result = Bool[]
+    for byte in bytes
+        for i in 0:7
+            push!(result, (byte & (0x01 << i)) != 0)
+        end
+    end
+    result
+end
+
+"""
+    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+
+Returns an Array{Bool,1} representing bits
+"""
+function flags2bytes(flags::Array{Bool,1})
+    if mod(length(flags), 8) != 0
+        error("flags does not have a length that is divisible by 8")
+    end
+    result = fill(0x00, fld(length(flags), 8))
+    i = 0
+    for flag in flags
+        byte_index, bit_index = fldmod(i, 8)
+        if flag
+            result[byte_index + 1] |= (1 << bit_index)
+        end
+        i += 1
+    end
+    result
+end

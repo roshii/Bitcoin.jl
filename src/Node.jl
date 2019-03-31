@@ -1,3 +1,4 @@
+
 using Sockets
 
 mutable struct Node
@@ -5,8 +6,9 @@ mutable struct Node
     port::Integer
     testnet::Bool
     logging::Bool
+    acknowledged::Bool
     sock::TCPSocket
-    Node(host::Union{String,IPv4}, port::Integer, testnet::Bool=false, logging::Bool=false) = new(host, port, testnet, logging)
+    Node(host::Union{String,IPv4}, port::Integer, testnet::Bool=false, logging::Bool=false) = new(host, port, testnet, logging, false)
 end
 
 Node(host::Union{String,IPv4}, testnet::Bool=false) = Node(host, DEFAULT["port"][testnet], testnet)
@@ -49,7 +51,7 @@ function send2node(node::Node, message::T) where {T<:AbstractMessage}
                                serialize(message),
                                node.testnet)
     if node.logging
-        println("sending: ", envelope)
+        println("Sending : ", envelope)
     end
     write(node.sock, serialize(envelope))
 end
@@ -60,45 +62,26 @@ handshake(node::Node) -> Bool
 Do a handshake with the other node, returns true if successful
 Handshake is sending a version message and getting a verack back.
 """
-function handshake(node::Node)
-    try
-        connect!(node)
-        @async read(node.sock)
-        send2node(node, VersionMessage())
-        version, verack = false, false
-        while !(version && verack)
-            if bytesavailable(node.sock) > 0
-                raw = read(node.sock.buffer)
-                if node.logging
-                    println("Raw response: \n", bytes2hex(raw))
-                end
-                envelopes = io2envelope(raw, node.testnet)
-                for envelope in envelopes
-                    command = envelope.command
-                    msg = PARSE_PAYLOAD[command](envelope.payload)
-                    if node.logging
-                        println("Parsed response: \n", msg)
-                    end
-                    if command == "version"
-                        send2node(node, VerAckMessage())
-                        version = true
-                    elseif command == "verack"
-                        verack = true
-                    elseif command == "ping"
-                        send2node(node, PongMessage(envelope.payload))
-                    end
-                end
-            else
-                sleep(0.01)
-            end
+function handshake(node::Node, messages::Channel)
+    println("Connecting to node...")
+    connect!(node)
+    @async read(node.sock)
+    @async read_messages(node, messages)
+    println("Sending version message...")
+    send2node(node, VersionMessage())
+    i = 0
+    while !node.acknowledged
+        if eof(node.sock) || i == 2
+            println("Failed handshake!")
+            return false
         end
-        true
-    catch e
-        println("Failed, error ", e, " was raised.")
-        false
+        msg = take!(messages)
+        answer(node, msg)
+        i += 1
     end
+    println("Handshake successfull")
+    return true
 end
-
 
 """
     getheaders(node::Node, stop::Integer, start::Integer=1) -> Array{BlockHeader,1}
@@ -117,7 +100,7 @@ function getheaders(node::Node, stop::Integer, start::Integer=1)
             send2node(node, msg)
             if bytesavailable(node.sock) > 0
                 raw = read(node.sock.buffer)
-                envelopes = io2envelope(raw, node.testnet)
+                envelopes = io2envelopes(raw, node.testnet)
                 for envelope in envelopes
                     if envelope.command == "headers"
                         headers = PARSE_PAYLOAD[envelope.command](envelope.payload)
@@ -152,4 +135,76 @@ function getheaders(node::Node, stop::Integer, start::Integer=1)
         end
     end
     result
+end
+
+function read_messages(node::Node, net_msg::Channel)
+    while !eof(node.sock)
+        envelope = io2envelope(node.sock.buffer, node.testnet)
+        command = envelope.command
+        msg = haskey(PARSE_PAYLOAD, command) ?
+              PARSE_PAYLOAD[command](envelope.payload) :
+              bytes2hex(envelope.payload)
+        put!(net_msg, msg)
+    end
+end
+
+function answer(node::Node, msg::HeadersMessage)
+    println("\n\n --- Headers received --- \n\n")
+    getdata = GetDataMessage()
+    for b in msg.headers
+        if check_pow(b)
+            append!(getdata, DATA_MESSAGE_TYPE["MSG_FILTERED_BLOCK"], hash(b))
+        else
+            error("Invalid proof of work for block ", b)
+        end
+    end
+    send2node(node, getdata)
+end
+
+function answer(node::Node, msg::MerkleBlockMessage)
+    if !is_valid(msg)
+        error("Merkle proof is *not* valid!")
+    else
+        println("Merkle proof is valid.")
+    end
+end
+
+function answer(node::Node, msg::VersionMessage)
+    send2node(node, VerAckMessage())
+end
+
+function answer(node::Node, msg::VerAckMessage)
+    node.acknowledged = true
+    println("\n--------\nVersion Acknowledgement received from\n", node)
+    return
+end
+
+function answer(node::Node, msg::PingMessage)
+    send2node(node, PongMessage(serialize(msg)))
+end
+
+function answer(node::Node, msg::AbstractMessage)
+    println("Ignoring...")
+end
+
+function get_tx_of_interest(node::Node, net_msg::Channel, adr::String)
+    found = false
+    while !found
+        msg = take!(net_msg)
+        if typeof(msg) <: Tx
+            println("\n\n --- Tx received --- \n\n")
+            i = 0
+            for tx_out in msg.tx_outs
+                if script2address(tx_out.script_pubkey, true) == adr
+                    println("found: ", txid(msg), " ", i)
+                    found = true
+                    break
+                end
+                i += 1
+            end
+        else
+            println("Processing ", msg)
+            answer(node, msg)
+        end
+    end
 end

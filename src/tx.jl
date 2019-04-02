@@ -49,9 +49,11 @@ mutable struct TxIn <: TxComponent
     prev_tx::Array{UInt8,1}
     prev_index::Integer
     script_sig::Script
+    witness::Script
     sequence::Integer
-    TxIn(prev_tx, prev_index) = new(prev_tx, prev_index, Script(nothing), 0xffffffff)
-    TxIn(prev_tx, prev_index, script_sig, sequence=0xffffffff) = new(prev_tx, prev_index, script_sig, sequence)
+    TxIn(prev_tx, prev_index) = new(prev_tx, prev_index, Script(nothing), Script(nothing), 0xffffffff)
+    TxIn(prev_tx, prev_index, script_sig::Script, sequence::Integer=0xffffffff) = new(prev_tx, prev_index, script_sig, Script(nothing), sequence)
+    TxIn(prev_tx, prev_index, script_sig::Script, witness::Script, sequence::Integer=0xffffffff) = new(prev_tx, prev_index, script_sig, witness, sequence)
 end
 
 function show(io::IO, z::TxIn)
@@ -151,7 +153,9 @@ mutable struct Tx <: TxComponent
     tx_outs::Array{TxOut, 1}
     locktime::Integer
     testnet::Bool
-    Tx(version, tx_ins, tx_outs, locktime, testnet=false) = new(version, tx_ins, tx_outs, locktime, testnet)
+    segwit::Bool
+    flag::UInt8
+    Tx(version, tx_ins, tx_outs, locktime, testnet=false, segwit=false, flag=0x00) = new(version, tx_ins, tx_outs, locktime, testnet, segwit, flag)
 end
 
 function show(io::IO, z::Tx)
@@ -164,15 +168,8 @@ function show(io::IO, z::Tx)
             "\n", z.tx_outs)
 end
 
-"""
-    txparse(s::Base.GenericIOBuffer, testnet::Bool=false) -> Tx
-
-Returns a Tx object given a byte stream
-"""
-function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
-    bytes = UInt8[]
-    readbytes!(s, bytes, 4)
-    version = bytes2int(bytes, true)
+function parse_legacy(s::Base.GenericIOBuffer, testnet::Bool=false)
+    version = ltoh(reinterpret(UInt32, read(s, 4))[1])
     num_inputs = read_varint(s)
     inputs = []
     for i in 1:num_inputs
@@ -185,9 +182,58 @@ function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
         output = txoutparse(s)
         push!(outputs, output)
     end
-    readbytes!(s, bytes, 4)
-    locktime = bytes2int(bytes, true)
+    locktime = ltoh(reinterpret(UInt32, read(s, 4))[1])
     return Tx(version, inputs, outputs, locktime, testnet)
+end
+
+function parse_segwit(s::Base.GenericIOBuffer, testnet::Bool=false)
+    version = ltoh(reinterpret(UInt32, read(s, 4))[1])
+    flag = read(s, 2)[2]
+    num_inputs = read_varint(s)
+    inputs = []
+    for _ ∈ 1:num_inputs
+        push!(inputs, txinparse(s))
+    end
+    num_outputs = read_varint(s)
+    outputs = []
+    for _ ∈ 1:num_outputs
+        push!(outputs, txoutparse(s))
+    end
+    for tx_in ∈ inputs
+        items = []
+        num_items = read_varint(s)
+        for _ in 1:num_items
+            item_len = read_varint(s)
+            if item_len == 0
+                push!(items, 0)
+            else
+                push!(items, read(s, item_len))
+            end
+        end
+        tx_in.witness.instructions = items
+    end
+    locktime = ltoh(reinterpret(UInt32, read(s, 4))[1])
+    Tx(version, inputs, outputs, locktime,
+    testnet, true, flag)
+end
+
+function parse_tx(s::IOBuffer, testnet::Bool=false)
+    if read(s, 5)[5] == 0x00
+        f = parse_segwit
+    else
+        f = parse_legacy
+    end
+    seekstart(s)
+    f(s, testnet)
+end
+
+"""
+txparse(s::Base.GenericIOBuffer, testnet::Bool=false) -> Tx
+
+Returns a Tx object given a byte stream
+"""
+function txparse(s::Base.GenericIOBuffer, testnet::Bool=false)
+    parse_legacy(s, testnet)
 end
 
 function payload2tx(payload::Array{UInt8,1})
@@ -199,7 +245,10 @@ end
 
 Returns the byte serialization of the transaction
 """
-function serialize(tx::Tx)
+serialize(tx::Tx) = tx.segwit ? serialize_segwit(tx) : serialize_legacy(tx)
+
+
+function serialize_legacy(tx::Tx)
     result = int2bytes(tx.version, 4, true)
     append!(result, encode_varint(length(tx.tx_ins)))
     for tx_in in tx.tx_ins
@@ -213,8 +262,32 @@ function serialize(tx::Tx)
     return result
 end
 
+function serialize_segwit(tx::Tx)
+    result = int2bytes(tx.version, 4, true)
+    append!(result, [0x00, tx.flag])
+    append!(result, encode_varint(length(tx.tx_ins)))
+    for tx_in in tx.tx_ins
+        append!(result, txinserialize(tx_in))
+    end
+    append!(result, encode_varint(length(tx.tx_outs)))
+    for tx_out in tx.tx_outs
+        append!(result, txoutserialize(tx_out))
+    end
+    for tx_in in tx.tx_ins
+        append!(result, UInt8(length(tx_in.witness.instructions)))
+        for item in tx_in.witness.instructions
+            if typeof(item) <: Array
+                append!(result, encode_varint(length(item)))
+            end
+            append!(result, item)
+        end
+    end
+    append!(result, int2bytes(tx.locktime, 4, true))
+    return result
+end
+
 function txserialize(tx::Tx)
-    serialize(tx)
+    serialize_legacy(tx::Tx)
 end
 
 
@@ -359,3 +432,6 @@ function coinbase_height(tx::Tx)
     height_bytes = tx.tx_ins[1].script_sig.instructions[1]
     return bytes2int(height_bytes, true)
 end
+
+@deprecate txparse parse_legacy
+@deprecate txserialize serialize_legacy

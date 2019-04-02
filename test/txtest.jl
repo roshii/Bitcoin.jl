@@ -40,7 +40,7 @@ using Base58: base58checkdecode
     end
     @testset "Serialize" begin
         stream = IOBuffer(raw_tx)
-        tx = txparse(stream)
+        tx = Bitcoin.parse_legacy(stream)
         @test txserialize(tx) == raw_tx
     end
     @testset  "Input Value" begin
@@ -108,5 +108,20 @@ using Base58: base58checkdecode
         stream = IOBuffer(raw_tx)
         tx = txparse(stream)
         @test coinbase_height(tx) == nothing
+    end
+end
+@testset "SegWit Transactions" begin
+    raw = hex2bytes("0100000000010115e180dc28a2327e687facc33f10f2a20da717e5548406f7ae8b4c811072f85601000000000fffffff0100b4f505000000001976a9141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92888ac02483045022100df7b7e5cda14ddf91290e02ea10786e03eb11ee36ec02dd862fe9a326bbcb7fd02203f5b4496b667e6e281cc654a2da9e4f08660c620a1051337fa8965f727eb19190121038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990ac00000000")
+    @testset "Parse Segwit" begin
+        tx = Bitcoin.parse_tx(IOBuffer(raw), false)
+        @test tx.version == 1
+        @test tx.flag == 0x01
+        hex1 = "3045022100df7b7e5cda14ddf91290e02ea10786e03eb11ee36ec02dd862fe9a326bbcb7fd02203f5b4496b667e6e281cc654a2da9e4f08660c620a1051337fa8965f727eb191901"
+        hex2 = "038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990ac"
+        @test tx.tx_ins[1].witness.instructions == Script([hex2bytes(hex1), hex2bytes(hex2)]).instructions
+    end
+    @testset "Serialize" begin
+        tx = Bitcoin.parse_tx(IOBuffer(raw), false)
+        @test Bitcoin.serialize(tx) == raw
     end
 end

@@ -1,4 +1,5 @@
 using HTTP
+import Base.hash
 
 struct Fetcher
     cache::Dict{String,Any}
@@ -294,8 +295,15 @@ end
 """
 Binary hash of the legacy serialization
 """
+function hash(tx::Tx)
+    return reverse(hash256(serialize_legacy(tx)))
+end
+
+"""
+Binary hash of the legacy serialization
+"""
 function txhash(tx::Tx)
-    return reverse(hash256(serialize(tx)))
+    return reverse(hash256(serialize_legacy(tx)))
 end
 
 """
@@ -435,3 +443,4 @@ end
 
 @deprecate txparse parse_legacy
 @deprecate txserialize serialize_legacy
+@deprecate txhash hash

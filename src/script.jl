@@ -168,11 +168,20 @@ function p2sh_script(h160::Array{UInt8,1})
     return Script(script)
 end
 
+"""
+Takes a hash160 and returns the p2wpkh ScriptPubKey
+"""
+function p2wpkh_script(h160::Array{UInt8,1})
+    return Script([0x00, h160])
+end
+
 function scripttype(script::Script)
     if is_p2pkh(script)
         return "P2PKH"
     elseif is_p2sh(script)
         return "P2SH"
+    elseif is_p2wpkh(script)
+        return "P2WPKH"
     else
         return error("Unknown Script type")
     end
@@ -202,6 +211,13 @@ function is_p2sh(script::Script)
            typeof(script.instructions[2]) == Array{UInt8,1} &&
            length(script.instructions[2]) == 20 &&
            script.instructions[3] == 0x87
+end
+
+function is_p2wpkh(script::Script)
+    return length(script.instructions) == 2 &&
+           script.instructions[1] == 0x00 &&
+           typeof(script.instructions[2]) <: Array &&
+           length(script.instructions[2]) == 20
 end
 
 const H160_INDEX = Dict([

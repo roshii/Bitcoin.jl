@@ -1,3 +1,4 @@
+using Base58
 @testset "Script" begin
     @testset "parse" begin
         script_pubkey = IOBuffer(hex2bytes("6a47304402207899531a52d59a6de200179928ca900254a36b8dff8bb75f5f5d71b1cdc26125022008b422690b8461cb52c3cc30330b23d574351872b7c361e9aae3649071c1a7160121035d5c93d9ac96881f19ba1f686f15f009ded7c62efe85a872e6a19b43c15a2937"))
@@ -30,7 +31,6 @@
         @test Bitcoin.scriptevaluate(combined_script, z) == true
     end
     @testset "Address" begin
-        using Base58
         address_1 = "1BenRpVUFK65JFWcQSuHnJKzc4M8ZP8Eqa"
         h160 = base58checkdecode(UInt8.(collect(address_1)))[2:end]
         p2pkh_script_pubkey = Bitcoin.p2pkh_script(h160)
@@ -43,5 +43,10 @@
         @test script2address(p2sh_script_pubkey, false) == address_3
         address_4 = "2N3u1R6uwQfuobCqbCgBkpsgBxvr1tZpe7B"
         @test script2address(p2sh_script_pubkey, true) == address_4
+    end
+    @testset "P2WPKH" begin
+        h160 = hex2bytes("74d691da1574e6b3c192ecfb52cc8984ee7b6c56")
+        p2wpkh_script = Bitcoin.p2wpkh_script(h160)
+        @test Bitcoin.is_p2wpkh(p2wpkh_script)
     end
 end

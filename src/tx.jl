@@ -1,5 +1,5 @@
 using HTTP
-import Base.hash
+import Base.hash, ECC.verify
 
 struct Fetcher
     cache::Dict{String,Any}
@@ -26,16 +26,15 @@ function txfetch(tx_id::String, testnet::Bool=false, fresh::Bool=false, fetcher:
             error("Unexpected status: ", response.status)
         end
         raw = response.body
-        if raw[5:6] == [0x00, 0x01]
-            deleteat!(raw, 5:6)
-            # flag = true # If present, always 0001, and indicates the presence of witness data
-            tx = txparse(IOBuffer(raw), testnet)
-            tx.locktime = bytes2int(raw[end-3:end], true)
+        # println(bytes2hex(raw))
+        tx = parse_tx(IOBuffer(raw), testnet)
+        if tx.segwit
+            computed = id(tx)
         else
-            tx = txparse(IOBuffer(raw), testnet)
+            computed = bytes2hex(circshift(hash256(raw), -1))
         end
-        if txid(tx) != tx_id
-            error("not the same id : ", txid(tx),
+        if id(tx) != tx_id
+            error("not the same id : ", id(tx),
                 "\n             vs : ", tx_id)
         end
         fetcher.cache[tx_id] = tx
@@ -48,10 +47,10 @@ abstract type TxComponent end
 
 mutable struct TxIn <: TxComponent
     prev_tx::Array{UInt8,1}
-    prev_index::Integer
+    prev_index::UInt32
     script_sig::Script
     witness::Script
-    sequence::Integer
+    sequence::UInt32
     TxIn(prev_tx, prev_index) = new(prev_tx, prev_index, Script(nothing), Script(nothing), 0xffffffff)
     TxIn(prev_tx, prev_index, script_sig::Script, sequence::Integer=0xffffffff) = new(prev_tx, prev_index, script_sig, Script(nothing), sequence)
     TxIn(prev_tx, prev_index, script_sig::Script, witness::Script, sequence::Integer=0xffffffff) = new(prev_tx, prev_index, script_sig, witness, sequence)
@@ -66,11 +65,9 @@ Takes a byte stream and parses the tx_input at the start
 return a TxIn object
 """
 function txinparse(s::Base.GenericIOBuffer)
-    prev_tx = UInt8[]
-    readbytes!(s, prev_tx, 32)
+    prev_tx = read(s, 32)
     reverse!(prev_tx)
-    bytes = UInt8[]
-    readbytes!(s, bytes, 4)
+    bytes = read(s, 4)
     prev_index = bytes2int(bytes, true)
     script_sig = scriptparse(s)
     readbytes!(s, bytes, 4)
@@ -95,9 +92,16 @@ function txin_fetchtx(tx::TxIn, testnet::Bool=false)
 end
 
 """
+    value(txin::TxIn, testnet::Bool=false) ->
+
 Get the outpoint value by looking up the tx hash
 Returns the amount in satoshi
 """
+function value(txin::TxIn, testnet::Bool=false)
+    tx = txin_fetchtx(txin, testnet)
+    return tx.tx_outs[txin.prev_index + 1].amount
+end
+
 function txinvalue(txin::TxIn, testnet::Bool=false)
     tx = txin_fetchtx(txin, testnet)
     return tx.tx_outs[txin.prev_index + 1].amount
@@ -114,7 +118,7 @@ end
 
 
 struct TxOut <: TxComponent
-    amount::Integer
+    amount::UInt64
     script_pubkey::Script
     TxOut(amount, script_pubkey) = new(amount, script_pubkey)
 end
@@ -138,10 +142,16 @@ function txoutparse(s::Base.GenericIOBuffer)
 end
 
 """
-    txoutserialize(tx::TxOut) -> Array{UInt8,1}
+    serialize(tx::TxOut) -> Array{UInt8,1}
 
 Returns the byte serialization of the transaction output
 """
+function serialize(tx::TxOut)
+    result = int2bytes(tx.amount, 8, true)
+    append!(result, scriptserialize(tx.script_pubkey))
+    return result
+end
+
 function txoutserialize(tx::TxOut)
     result = int2bytes(tx.amount, 8, true)
     append!(result, scriptserialize(tx.script_pubkey))
@@ -149,14 +159,17 @@ function txoutserialize(tx::TxOut)
 end
 
 mutable struct Tx <: TxComponent
-    version::Integer
+    version::UInt32
     tx_ins::Array{TxIn, 1}
     tx_outs::Array{TxOut, 1}
-    locktime::Integer
+    locktime::UInt32
     testnet::Bool
     segwit::Bool
     flag::UInt8
-    Tx(version, tx_ins, tx_outs, locktime, testnet=false, segwit=false, flag=0x00) = new(version, tx_ins, tx_outs, locktime, testnet, segwit, flag)
+    _hash_prevouts
+    _hash_sequence
+    _hash_outputs
+    Tx(version::Integer, tx_ins, tx_outs, locktime::Integer, testnet=false, segwit=false, flag=0x00) = new(UInt32(version), tx_ins, tx_outs, UInt32(locktime), testnet, segwit, flag, nothing, nothing, nothing)
 end
 
 function show(io::IO, z::Tx)
@@ -307,10 +320,14 @@ function txhash(tx::Tx)
 end
 
 """
-    txid(tx::Tx) -> String
+    id(tx::Tx) -> String
 
 Returns an hexadecimal string of the transaction hash
 """
+function id(tx::Tx)
+    return bytes2hex(txhash(tx))
+end
+
 function txid(tx::Tx)
     return bytes2hex(txhash(tx))
 end
@@ -323,7 +340,7 @@ Returns the fee of this transaction in satoshi
 function txfee(tx::Tx)
     input_sum, output_sum = 0, 0
     for tx_in in tx.tx_ins
-        input_sum += txinvalue(tx_in, tx.testnet)
+        input_sum += value(tx_in, tx.testnet)
     end
     for tx_out in tx.tx_outs
         output_sum += tx_out.amount
@@ -366,6 +383,71 @@ function txsighash(tx::Tx, input_index::Integer)
     return bytes2int(txsighash256(tx, input_index))
 end
 
+function hash_prevouts(tx::Tx)
+    if tx._hash_prevouts == nothing
+        all_prevouts = UInt8[]
+        all_sequence = UInt8[]
+        for tx_in in tx.tx_ins
+            append!(all_prevouts, circshift(tx_in.prev_tx, -1))
+            append!(all_prevouts, reinterpret(UInt8, [htol(tx_in.prev_index)]))
+            append!(all_sequence, reinterpret(UInt8, [htol(tx_in.sequence)]))
+            tx._hash_prevouts = hash256(all_prevouts)
+            tx._hash_sequence = hash256(all_sequence)
+        end
+    end
+    return tx._hash_prevouts
+end
+
+function hash_sequence(tx::Tx)
+    if tx._hash_sequence == nothing
+        hash_prevouts(tx)
+    end
+    return tx._hash_sequence
+end
+
+function hash_outputs(tx::Tx)
+    if tx._hash_outputs == nothing
+        all_outputs = UInt8[]
+        for tx_out in tx.tx_outs
+            append!(all_outputs, serialize(tx_out))
+        end
+        tx._hash_outputs = hash256(all_outputs)
+    end
+    return tx._hash_outputs
+end
+
+
+"""
+Returns the integer representation of the hash that needs to get
+signed for index input_index
+"""
+function sig_hash_bip143(tx::Tx, input_index::Integer, redeem_script::Script=nothing, witness_script::Script=nothing)
+    tx_in = tx.tx_ins[input_index+1]
+    # per BIP143 spec
+    s = reinterpret(UInt8, [htol(tx.version)])
+    append!(s, hash_prevouts(tx))
+    append!(s, hash_sequence(tx))
+    append!(s, circshift(tx_in.prev_tx, -1))
+    append!(s, reinterpret(UInt8, [htol(tx_in.prev_index)]))
+
+    if witness_script != nothing
+        script_code = serialize(witness_script)
+    elseif redeem_script != nothing
+        script_code = serialize(p2pkh_script(redeem_script.instructions[2]))
+    else
+        script_code = serialize(p2pkh_script(txin_scriptpubkey(tx_in, tx.testnet)).instructions[2])
+    end
+    append!(s, script_code)
+    append!(s, reinterpret(UInt8, [htol(value(tx_in))]))
+    append!(s, reinterpret(UInt8, [htol(tx_in.sequence)]))
+    append!(s, hash_outputs(tx))
+    append!(s, reinterpret(UInt8, [htol(tx_in.locktime)]))
+    append!(s, reinterpret(UInt8, [htol(SIGHASH_ALL)]))
+
+    return bytes2int(hash256(s))
+end
+
+
 """
 Returns whether the input has a valid signature
 """
@@ -378,9 +460,58 @@ function txinputverify(tx::Tx, input_index)
     return scriptevaluate(combined_script, z)
 end
 
+
 """
-Verify this transaction
+Returns whether the input has a valid signature
 """
+function verify_input(tx::Tx, input_index)
+    tx_in = tx.tx_ins[input_index+1]
+    script_pubkey = txin_scriptpubkey(txin, tx.testnet)
+    if is_p2sh_script_pubkey(script_pubkey)
+        command = tx_in.script_sig.instructions[end]
+        raw_redeem = UInt8(length(command))
+        append!(raw_redeem, command)
+        redeem_script = scriptparse(IOBuffer(raw_redeem))
+        if is_p2wpkh_script_pubkey(redeem_script)
+
+            z = sig_hash_bip143(tx, input_index, redeem_script)
+            witness = tx_in.witness
+        else
+            z = txsighash(tx, input_index, redeem_script)
+            witness = nothing
+        end
+    else
+        if is_p2wpkh_script_pubkey(script_pubkey)
+            z = sig_hash_bip143(tx, input_index)
+            witness = tx_in.witness
+        else
+            z = txsighash(tx, input_index)
+            witness = nothing
+        end
+    end
+    combined_script = copy(tx_in.script_sig)
+    append!(combined_script, script_pubkey(tx_in, tx.testnet))
+    return evaluate(combined_script, z, witness)
+end
+
+
+"""
+    verify(tx::Tx) -> Bool
+
+Verify transaction `tx`
+"""
+function verify(tx::Tx)
+    if txfee(tx) < 0
+        return false
+    end
+    for i in 1:length(tx.tx_ins)
+        if !txinputverify(tx, i - 1)
+            return false
+        end
+    end
+    return true
+end
+
 function txverify(tx::Tx)
     if txfee(tx) < 0
         return false
@@ -443,4 +574,9 @@ end
 
 @deprecate txparse parse_legacy
 @deprecate txserialize serialize_legacy
+@deprecate txoutserialize serialize
 @deprecate txhash hash
+@deprecate txinputverify verify_input
+@deprecate txinvalue(txin::TxIn, testnet::Bool) value(txin::TxIn, testnet::Bool)
+@deprecate txverify(tx::Tx) verify(tx::Tx)
+@deprecate txid(tx::Tx) id(tx::Tx)

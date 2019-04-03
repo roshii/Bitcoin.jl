@@ -25,7 +25,7 @@ read_varint reads a variable integer from a stream
          return reinterpret(Int64, i)[1]
      else
          # anything else is just the integer
-         return reinterpret(Int8, i)[1]
+         return Int(i[1])
      end
  end
 
@@ -91,3 +91,6 @@ function flags2bytes(flags::Array{Bool,1})
     end
     result
 end
+
+# @deprecate read_varint(s::Base.GenericIOBuffer{Array{UInt8,1}}) read(io::IOBuffer)::CompactSizeUInt
+# @deprecate encode_varint(n::Integer) serialize(n::CompactSizeUInt)

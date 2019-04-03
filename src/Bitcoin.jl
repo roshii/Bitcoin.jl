@@ -6,6 +6,7 @@ using Ripemd: ripemd160
 using Dates: unix2datetime, datetime2unix, now
 using Sockets
 import Base.show
+export CompactSizeUInt
 export Tx, TxIn, TxOut, Script, BlockHeader,
        VersionMessage, GetHeadersMessage, GetDataMessage,
        Node, BloomFilter
@@ -16,6 +17,7 @@ export address, wif, txparse, txserialize, txid, txfee, txsighash,
        blockparse, target, difficulty, check_pow, txoutparse
 
 include("helper.jl")
+include("CompactSizeUInt.jl")
 include("constants.jl")
 include("address.jl")
 include("op.jl")

@@ -75,10 +75,32 @@ using Base58: base58checkdecode
         @test Bitcoin.txsighash(tx, 0) == want
     end
     @testset "Verify P2PKH" begin
-        tx = txfetch("452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03")
-        @test txverify(tx)
-        tx = txfetch("5418099cc755cb9dd3ebc6cf1a7888ad53a1a3beb5a025bce89eb1bf7f1650a2", true)
-        @test txverify(tx)
+        @testset "P2PKH" begin
+            tx = txfetch("452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03")
+            @test verify(tx)
+            tx = txfetch("5418099cc755cb9dd3ebc6cf1a7888ad53a1a3beb5a025bce89eb1bf7f1650a2", true)
+            @test verify(tx)
+        end
+        @testset "P2SH" begin
+            tx = txfetch("46df1a9484d0a81d03ce0ee543ab6e1a23ed06175c104a178268fad381216c2b")
+            @test verify(tx)
+        end
+        @testset "P2WPKH" begin
+            tx = txfetch("d869f854e1f8788bcff294cc83b280942a8c728de71eb709a2c29d10bfe21b7c", true)
+            @test verify(tx)
+        end
+        @testset "P2SH-P2WPKH" begin
+            tx = txfetch("c586389e5e4b3acb9d6c8be1c19ae8ab2795397633176f5a6442a261bbdefc3a")
+            @test verify(tx)
+        end
+        @testset "P2WSH" begin
+            tx = txfetch("78457666f82c28aa37b74b506745a7c7684dc7842a52a457b09f09446721e11c", true)
+            @test verify(tx)
+        end
+        @testset "P2SH-P2WSH" begin
+            tx = txfetch("954f43dbb30ad8024981c07d1f5eb6c9fd461e2cf1760dd1283f052af746fc88", true)
+            @test verify(tx)
+        end
     end
     @testset "Sign Input" begin
         private_key = PrivateKey(8675309)

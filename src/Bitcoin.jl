@@ -10,8 +10,8 @@ export CompactSizeUInt
 export Tx, TxIn, TxOut, Script, BlockHeader,
        VersionMessage, GetHeadersMessage, GetDataMessage,
        Node, BloomFilter
-export address, wif, txparse, txserialize, txid, txfee, txsighash,
-       scriptevaluate, txfetch, txverify, txsigninput,
+export address, wif, parse, serialize, id, fee, sig_hash,
+       evaluate, fetch, verify, txsigninput,
        h160_2_address, script2address,
        iscoinbase, coinbase_height,
        blockparse, target, difficulty, check_pow, txoutparse

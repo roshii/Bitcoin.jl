@@ -23,7 +23,7 @@ end
 
 Returns a Script object from an IOBuffer
 """
-function scriptparse(s::Base.GenericIOBuffer{Array{UInt8,1}})
+function scriptparse(s::IOBuffer)
     length_ = read_varint(s)
     instructions = []
     count = 0
@@ -34,26 +34,17 @@ function scriptparse(s::Base.GenericIOBuffer{Array{UInt8,1}})
         current_byte = current[1]
         if current_byte >= 1 && current_byte <= 75
             n = current_byte
-            instruction = UInt8[]
-            readbytes!(s, instruction, n)
-            push!(instructions, instruction)
+            push!(instructions, read(s, n))
             count += n
         elseif current_byte == 76
             # op_pushdata1
-            n = UInt8[]
-            readbytes!(s, n, 1)
-            instruction = UInt8[]
-            readbytes!(s, instruction, n[1])
-            push!(instructions, instruction)
-            count += n[1] + 1
+            n = read(s, 1)[1]
+            push!(instructions, read(s, n))
+            count += n + 1
         elseif current_byte == 77
             # op_pushdata2
-            n = UInt8[]
-            readbytes!(s, n, 2)
-            n = reinterpret(Int16, n)[1]
-            instruction = UInt8[]
-            readbytes!(s, instruction, n)
-            push!(instructions, instruction)
+            n = reinterpret(Int16, read(s, 2))[1]
+            push!(instructions, read(s, n))
             count += n + 2
         else
             # op_code
@@ -70,7 +61,7 @@ function rawserialize(s::Script)
     result = UInt8[]
     for instruction in s.instructions
         if typeof(instruction) == UInt8
-            append!(result, instruction)
+            push!(result, instruction)
         else
             length_ = length(instruction)
             if length_ < 0x4b
@@ -90,6 +81,13 @@ function rawserialize(s::Script)
     return result
 end
 
+function serialize(s::Script)
+    result = rawserialize(s)
+    total = length(result)
+    prepend!(result, encode_varint(total))
+    return result
+end
+
 function scriptserialize(s::Script)
     result = rawserialize(s)
     total = length(result)
@@ -98,10 +96,155 @@ function scriptserialize(s::Script)
 end
 
 """
-    scriptevaluate(s::Script, z::Integer) -> Bool
+    evaluate(s::Script, z::Integer) -> Bool
 
 Evaluate if Script is valid given the transaction signature hash
 """
+function evaluate(s::Script, z::Integer)
+    instructions = copy(s.instructions)
+    stack = Array{UInt8,1}[]
+    altstack = Array{UInt8,1}[]
+    while length(instructions) > 0
+        instruction = popfirst!(instructions)
+        if typeof(instruction) <: Integer
+            operation = OP_CODE_FUNCTIONS[instruction]
+            function badop(instruction::Integer)
+                println("bad op: ", OP_CODE_NAMES[instruction])
+            end
+            if instruction in (99, 100)
+                # op_if/op_notif require the  array
+                if !operation(stack, instructions)
+                    badop(instruction)
+                    return false
+                end
+            elseif instruction in (107, 108)
+                # op_toaltstack/op_fromaltstack require the altstack
+                if !operation(stack, altstack)
+                    badop(instruction)
+                    return false
+                end
+            elseif instruction in (172, 173, 174, 175)
+                if !operation(stack, z)
+                    badop(instruction)
+                    return false
+                end
+            elseif !operation(stack)
+                badop(instruction)
+                return false
+            end
+        else
+            push!(stack, instruction)
+        end
+    end
+    if length(stack) == 0
+        return false
+    end
+    if pop!(stack) == Array{UInt8,1}[]
+        return false
+    end
+    return true
+end
+
+evaluate(s::Script, z::BigInt, w::Nothing) = evaluate(s, z)
+
+function evaluate(s::Script, z::Integer, witness::Script)
+    instructions = copy(s.instructions)
+    stack = Array{UInt8,1}[]
+    altstack = Array{UInt8,1}[]
+    while length(instructions) > 0
+        instruction = popfirst!(instructions)
+        if typeof(instruction) <: Integer
+            operation = OP_CODE_FUNCTIONS[instruction]
+            function badop(instruction::Integer)
+                println("bad op: ", OP_CODE_NAMES[instruction])
+            end
+            if instruction in (99, 100)
+                # op_if/op_notif require the  array
+                if !operation(stack, instructions)
+                    badop(instruction)
+                    return false
+                end
+            elseif instruction in (107, 108)
+                # op_toaltstack/op_fromaltstack require the altstack
+                if !operation(stack, altstack)
+                    badop(instruction)
+                    return false
+                end
+            elseif instruction in (172, 173, 174, 175)
+                if !operation(stack, z)
+                    badop(instruction)
+                    return false
+                end
+            elseif !operation(stack)
+                badop(instruction)
+                return false
+            end
+        else
+            push!(stack, instruction)
+
+            # p2sh rule. if the next three instructions are:
+            # OP_HASH160 <20 byte hash> OP_EQUAL this is the RedeemScript
+            # OP_HASH160 == 0xa9 && OP_EQUAL == 0x87
+            if length(instructions) == 3 && instructions[1] == 0xa9 &&
+               typeof(instructions[2]) == UInt8 && length(instructions[2]) == 20 &&
+               instructions[3] == 0x87
+                redeem_script = encode_varint(length(instruction))
+                append!(redeem_script, instruction)
+                # we execute the next three op codes
+                pop!(instructions)
+                h160 = pop!(instructions)
+                pop!(instructions)
+                if !op_hash160(stack)
+                    return false
+                end
+                append!(stack, h160)
+                if !op_equal(stack)
+                    return false
+                end
+                # final result should be a 1
+                if !op_verify(stack)
+                    println("bad p2sh h160")
+                    return false
+                end
+                # hashes match! now add the RedeemScript
+                stream = IOBuffer(redeem_script)
+                append!(instructions, scriptparse(stream).instructions)
+            end
+            # witness program version 0 rule. if stack instructions are:
+            # 0 <20 byte hash> this is p2wpkh
+            if length(stack) == 2 && stack[1] == UInt8[] && length(stack[2]) == 20
+                h160 = pop!(stack)
+                pop!(stack)
+                append!(instructions, witness)
+                append!(instructions, p2pkh_script(h160).instructions)
+            end
+            # witness program version 0 rule. if stack instructions are:
+            # 0 <32 byte hash> this is p2wsh
+            if length(stack) == 2 && stack[1] == UInt8[] && length(stack[2]) == 32
+                h256 = pop!(stack)
+                pop!(stack)
+                append!(instructions, witness[1:end-1])
+                witness_script = witness[end-1]
+                if h256 != sha256(witness_script)
+                    print("bad sha256")
+                    return false
+                end
+                # hashes match! now add the Witness Script
+                stream = IOBuffer(append!(encode_varint(length(witness_script)), witness_script))
+                witness_script_instructions = scriptparse(stream).instructions
+                append!(instructions, witness_script_instructions)
+            end
+        end
+    end
+    if length(stack) == 0
+        return false
+    end
+    if pop!(stack) == Array{UInt8,1}[]
+        return false
+    end
+    return true
+end
+
 function scriptevaluate(s::Script, z::Integer)
     instructions = copy(s.instructions)
     stack = Array{UInt8,1}[]
@@ -147,8 +290,9 @@ function scriptevaluate(s::Script, z::Integer)
     return true
 end
 
+
 """
-Takes a hash160 and returns the p2pkh scriptPubKey
+Takes a hash160 && returns the p2pkh scriptPubKey
 """
 function p2pkh_script(h160::Array{UInt8,1})
     script = Union{UInt8, Array{UInt8,1}}[]
@@ -159,7 +303,7 @@ end
 
 
 """
-Takes a hash160 and returns the p2sh scriptPubKey
+Takes a hash160 && returns the p2sh scriptPubKey
 """
 function p2sh_script(h160::Array{UInt8,1})
     script = Union{UInt8, Array{UInt8,1}}[]
@@ -169,7 +313,7 @@ function p2sh_script(h160::Array{UInt8,1})
 end
 
 """
-Takes a hash160 and returns the p2wpkh ScriptPubKey
+Takes a hash160 && returns the p2wpkh ScriptPubKey
 """
 function p2wpkh_script(h160::Array{UInt8,1})
     return Script([0x00, h160])
@@ -180,6 +324,8 @@ function scripttype(script::Script)
         return "P2PKH"
     elseif is_p2sh(script)
         return "P2SH"
+    elseif is_p2wsh(script)
+        return "P2WSH"
     elseif is_p2wpkh(script)
         return "P2WPKH"
     else
@@ -214,10 +360,22 @@ function is_p2sh(script::Script)
 end
 
 function is_p2wpkh(script::Script)
-    return length(script.instructions) == 2 &&
-           script.instructions[1] == 0x00 &&
-           typeof(script.instructions[2]) <: Array &&
-           length(script.instructions[2]) == 20
+    length(script.instructions) == 2 &&
+    script.instructions[1] == 0x00 &&
+    typeof(script.instructions[2]) <: Array &&
+    length(script.instructions[2]) == 20
+end
+
+"""
+Returns whether this follows the
+OP_0 <20 byte hash> pattern.
+"""
+function is_p2wsh(script::Script)
+    length(script.instructions) == 2 &&
+    script.instructions[1] == 0x00 &&
+    typeof(script.instructions[2]) == UInt8 &&
+    length(script.instructions[1]) == 32
+
 end
 
 const H160_INDEX = Dict([
@@ -233,3 +391,6 @@ function script2address(script::Script, testnet::Bool)
     h160 = script.instructions[H160_INDEX[type]]
     return h160_2_address(h160, testnet, type)
 end
+
+@deprecate scriptevaluate(s::Script, z::Integer) evaluate(s::Script, z::Integer)
+@deprecate scriptserialize(s::Script) serialize(s::Script)

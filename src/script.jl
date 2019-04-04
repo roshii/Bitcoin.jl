@@ -319,6 +319,13 @@ function p2wpkh_script(h160::Array{UInt8,1})
     return Script([0x00, h160])
 end
 
+"""
+Takes a hash160 && returns the p2wsh ScriptPubKey
+"""
+function p2wsh_script(hash256::Array{UInt8,1})
+    return Script([0x00, h256])
+end
+
 function scripttype(script::Script)
     if is_p2pkh(script)
         return "P2PKH"

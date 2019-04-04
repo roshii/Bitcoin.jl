@@ -557,7 +557,7 @@ function verify(tx::Tx, input_index)
             witness = tx_in.witness
         elseif is_p2wsh(redeem_script)
             raw_witness = tx_in.witness[end]
-            length_ = encode_varint(len(command))
+            length_ = encode_varint(length(command))
             pushfirst!(raw_witness, length_)
             witness_script = parse(IOBuffer(raw_witness))::Script
             z = sig_hash_bip143(tx, input_index, witness_script=witness_script)
@@ -569,6 +569,13 @@ function verify(tx::Tx, input_index)
     else
         if is_p2wpkh(script_pubkey_)
             z = sig_hash_bip143(tx, input_index)
+            witness = tx_in.witness
+        elseif is_p2wsh(script_pubkey_)
+            raw_witness = tx_in.witness[end]
+            length_ = encode_varint(length(raw_witness))
+            pushfirst!(raw_witness, length_)
+            witness_script = scriptparse(IOBuffer(raw_witness))
+            z = sig_hash_bip143(tx, input_index, witness_script=witness_script)
             witness = tx_in.witness
         else
             z = sig_hash(tx, input_index)

@@ -23,7 +23,7 @@
         @testset "op_0" begin
             stack = test_stack
             want = stack
-            push!(want, UInt8[])
+            push!(want, [0x00])
             @test Bitcoin.op_0(stack) == true
             @test stack == want
         end
@@ -302,7 +302,7 @@
         @testset "op_depth" begin
             stack = Array{UInt8,1}[]
             @test Bitcoin.op_depth(stack) == true
-            @test stack == [[]]
+            @test stack == [[0x00]]
             stack = [[0x01], [0x02]]
             @test Bitcoin.op_depth(stack) == true
             @test stack == [[0x01], [0x02], [0x02]]
@@ -387,7 +387,7 @@
             @test Bitcoin.op_equal(stack) == false
             stack = [[0x01], [0x02], [0x03], [0x04]]
             @test Bitcoin.op_equal(stack) == true
-            @test stack == [[0x01], [0x02], []]
+            @test stack == [[0x01], [0x02], [0x00]]
             stack = [[0x01], [0x02], [0x03], [0x03]]
             @test Bitcoin.op_equal(stack) == true
             @test stack == [[0x01], [0x02], [0x01]]
@@ -429,7 +429,7 @@
         @testset "op_not" begin
             @test Bitcoin.op_not(empty) == false
             @test Bitcoin.op_not(stack) == true
-            @test stack == [UInt8[]]
+            @test stack == [[0x00]]
             @test Bitcoin.op_not(stack) == true
             @test stack == [[0x01]]
         end
@@ -440,7 +440,7 @@
             @test stack == [[0x01]]
             stack = [[0x00]]
             @test Bitcoin.op_0notequal(stack) == true
-            @test stack == [UInt8[]]
+            @test stack == [[0x00]]
         end
         @testset "op_add" begin
             @test Bitcoin.op_add(empty) == false
@@ -457,13 +457,13 @@
             @test Bitcoin.op_booland(empty) == false
             stack = [[0x00], [0x00]]
             @test Bitcoin.op_booland(stack) == true
-            @test stack == [UInt8[]]
+            @test stack == [[0x00]]
             stack = [[0x01], [0x00]]
             @test Bitcoin.op_booland(stack) == true
-            @test stack == [UInt8[]]
+            @test stack == [[0x00]]
             stack = [[0x00], [0x01]]
             @test Bitcoin.op_booland(stack) == true
-            @test stack == [UInt8[]]
+            @test stack == [[0x00]]
             stack = [[0x01], [0x01]]
             @test Bitcoin.op_booland(stack) == true
             @test stack == [UInt8[0x01]]
@@ -472,7 +472,7 @@
             @test Bitcoin.op_boolor(empty) == false
             stack = [[0x00], [0x00]]
             @test Bitcoin.op_boolor(stack) == true
-            @test stack == [UInt8[]]
+            @test stack == [[0x00]]
             stack = [[0x00], [0x01]]
             @test Bitcoin.op_boolor(stack) == true
             @test stack == [UInt8[0x01]]
@@ -489,7 +489,7 @@
             @test Bitcoin.op_numequal(stack) == true
             @test stack == [[0x01], [0x02], [0x01]]
             @test Bitcoin.op_numequal(stack) == true
-            @test stack == [[0x01], UInt8[]]
+            @test stack == [[0x01], [0x00]]
         end
         @testset "op_numequalverify" begin
             @test Bitcoin.op_numequalverify(empty) == false
@@ -503,7 +503,7 @@
             @test Bitcoin.op_numnotequal(empty) == false
             stack = [[0x01], [0x02], [0x03], [0x03]]
             @test Bitcoin.op_numnotequal(stack) == true
-            @test stack == [[0x01], [0x02], UInt8[]]
+            @test stack == [[0x01], [0x02], [0x00]]
             stack = [[0x01], [0x02], [0x03], [0x04]]
             @test Bitcoin.op_numnotequal(stack) == true
             @test stack == [[0x01], [0x02], [0x01]]
@@ -514,7 +514,7 @@
             @test Bitcoin.op_lessthan(stack) == true
             @test stack == [[0x01], [0x01], [0x01]]
             @test Bitcoin.op_lessthan(stack) == true
-            @test stack == [[0x01], UInt8[]]
+            @test stack == [[0x01], [0x00]]
         end
         @testset "op_greaterthan" begin
             @test Bitcoin.op_greaterthan(empty) == false
@@ -522,7 +522,7 @@
             @test Bitcoin.op_greaterthan(stack) == true
             @test stack == [[0x04], [0x01], [0x01]]
             @test Bitcoin.op_greaterthan(stack) == true
-            @test stack == [[0x04], UInt8[]]
+            @test stack == [[0x04], [0x00]]
         end
         @testset "op_lessthanorequal" begin
             @test Bitcoin.op_lessthanorequal(empty) == false
@@ -530,7 +530,7 @@
             @test Bitcoin.op_lessthanorequal(stack) == true
             @test stack == [[0x01], [0x02], [0x01]]
             @test Bitcoin.op_lessthanorequal(stack) == true
-            @test stack == [[0x01], UInt8[]]
+            @test stack == [[0x01], [0x00]]
         end
         @testset "op_greaterthanorequal" begin
             @test Bitcoin.op_greaterthanorequal(empty) == false
@@ -538,7 +538,7 @@
             @test Bitcoin.op_greaterthanorequal(stack) == true
             @test stack == [[0x04], [0x00], [0x01]]
             @test Bitcoin.op_greaterthanorequal(stack) == true
-            @test stack == [[0x04], UInt8[]]
+            @test stack == [[0x04], [0x00]]
         end
         @testset "op_min" begin
             @test Bitcoin.op_min(empty) == false
@@ -563,7 +563,7 @@
             @test stack == [[0xa1], [0x01]]
             stack = [[0xa1], [0x08], [0x02], [0x04]]
             @test Bitcoin.op_within(stack) == true
-            @test stack == [[0xa1], UInt8[]]
+            @test stack == [[0xa1], [0x00]]
         end
     end
     @testset "Cryptographic and hashing operations" begin

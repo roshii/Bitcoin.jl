@@ -1,6 +1,6 @@
 function encode_num(num::Integer)
     if num == 0
-        return UInt8[]
+        return [0x00]
     end
     abs_num = abs(num)
     negative = num < 0
@@ -781,7 +781,7 @@ function op_checkmultisig(stack::StackType, z::Integer)
     if length(stack) < 1
         return false
     end
-    n = Bitcoin.decode_num(pop!(stack))
+    n = decode_num(pop!(stack))
     if length(stack) < (n + 1)
         return false
     end
@@ -789,7 +789,7 @@ function op_checkmultisig(stack::StackType, z::Integer)
     for sec in 1:n
         push!(sec_pubkeys, pop!(stack))
     end
-    m = Bitcoin.decode_num(pop!(stack))
+    m = decode_num(pop!(stack))
     if length(stack) < (m + 1)
         return false
     end
@@ -811,7 +811,7 @@ function op_checkmultisig(stack::StackType, z::Integer)
         end
         for sig in sigs
             if length(points) == 0
-                append!(stack, Bitcoin.encode_num(0))
+                append!(stack, encode_num(0))
                 return true
             end
             while length(points) > 0
@@ -822,7 +822,7 @@ function op_checkmultisig(stack::StackType, z::Integer)
                 println("not valid sig")
             end
         end
-        push!(stack, Bitcoin.encode_num(1))
+        push!(stack, encode_num(1))
     catch
         return false
     end

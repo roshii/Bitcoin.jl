@@ -1,3 +1,4 @@
+using Base58
 @testset "Script" begin
     @testset "parse" begin
         script_pubkey = IOBuffer(hex2bytes("6a47304402207899531a52d59a6de200179928ca900254a36b8dff8bb75f5f5d71b1cdc26125022008b422690b8461cb52c3cc30330b23d574351872b7c361e9aae3649071c1a7160121035d5c93d9ac96881f19ba1f686f15f009ded7c62efe85a872e6a19b43c15a2937"))
@@ -15,22 +16,21 @@
         want = "6a47304402207899531a52d59a6de200179928ca900254a36b8dff8bb75f5f5d71b1cdc26125022008b422690b8461cb52c3cc30330b23d574351872b7c361e9aae3649071c1a7160121035d5c93d9ac96881f19ba1f686f15f009ded7c62efe85a872e6a19b43c15a2937"
         script_pubkey = IOBuffer(hex2bytes(want))
         script = Bitcoin.scriptparse(script_pubkey)
-        @test bytes2hex(Bitcoin.scriptserialize(script)) == want
+        @test bytes2hex(Bitcoin.serialize(script)) == want
     end
     @testset "Evaluate" begin
         modified_tx = hex2bytes("0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000001976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88acfeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac1943060001000000")
         h256 = Bitcoin.hash256(modified_tx)
         z = bytes2int(h256)
         stream = IOBuffer(hex2bytes("0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600"))
-        tx = txparse(stream)
+        tx = parse(stream)::Tx
         tx_in = tx.tx_ins[1]
         combined_script = Bitcoin.Script(nothing)
         append!(combined_script.instructions, copy(tx_in.script_sig.instructions))
-        append!(combined_script.instructions, copy(Bitcoin.txin_scriptpubkey(tx_in).instructions))
-        @test Bitcoin.scriptevaluate(combined_script, z) == true
+        append!(combined_script.instructions, copy(Bitcoin.script_pubkey(tx_in).instructions))
+        @test Bitcoin.evaluate(combined_script, z) == true
     end
     @testset "Address" begin
-        using Base58
         address_1 = "1BenRpVUFK65JFWcQSuHnJKzc4M8ZP8Eqa"
         h160 = base58checkdecode(UInt8.(collect(address_1)))[2:end]
         p2pkh_script_pubkey = Bitcoin.p2pkh_script(h160)
@@ -43,5 +43,10 @@
         @test script2address(p2sh_script_pubkey, false) == address_3
         address_4 = "2N3u1R6uwQfuobCqbCgBkpsgBxvr1tZpe7B"
         @test script2address(p2sh_script_pubkey, true) == address_4
+    end
+    @testset "P2WPKH" begin
+        h160 = hex2bytes("74d691da1574e6b3c192ecfb52cc8984ee7b6c56")
+        p2wpkh_script = Bitcoin.p2wpkh_script(h160)
+        @test Bitcoin.is_p2wpkh(p2wpkh_script)
     end
 end

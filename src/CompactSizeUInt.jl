@@ -43,6 +43,8 @@ function show(io::IO, z::CompactSizeUInt)
     print(io, Int(z.value))
 end
 
+String(z::CompactSizeUInt) = string(Int(z.value))
+
 """
     read(io::IOBuffer)::CompactSizeUInt
 

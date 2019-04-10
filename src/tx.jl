@@ -2,9 +2,6 @@ using HTTP
 import Base: hash, parse, fetch
 import ECC.verify
 
-struct Fetcher
-end
-
 function geturl(testnet::Bool=false)
     string("http://", NODE_URL, ":", DEFAULT["rpcport"][testnet])
 end
@@ -27,39 +24,13 @@ function fetch(tx_id::String, testnet::Bool=false)
     if tx.segwit
         computed = id(tx)
     else
-        computed = bytes2hex(circshift(hash256(raw), -1))
+        computed = bytes2hex(reverse!(copy(hash256(raw))))
     end
     if id(tx) != tx_id
         error("not the same id : ", id(tx),
             "\n             vs : ", tx_id)
     end
     return tx
-end
-
-function txfetch(tx_id::String, testnet::Bool=false, fresh::Bool=false, fetcher::Fetcher=Fetcher(nothing))
-    if fresh || !haskey(fetcher.cache, tx_id)
-        url = string(geturl(testnet), "/rest/tx/", tx_id, ".bin")
-        response = HTTP.request("GET", url)
-        try
-            response.status == 200
-        catch
-            error("Unexpected status: ", response.status)
-        end
-        raw = response.body
-        tx = parse(IOBuffer(raw), testnet)
-        if tx.segwit
-            computed = id(tx)
-        else
-            computed = bytes2hex(circshift(hash256(raw), -1))
-        end
-        if id(tx) != tx_id
-            error("not the same id : ", id(tx),
-                "\n             vs : ", tx_id)
-        end
-        fetcher.cache[tx_id] = tx
-    end
-    fetcher.cache[tx_id].testnet = testnet
-    return fetcher.cache[tx_id]
 end
 
 abstract type TxComponent end
@@ -108,21 +79,8 @@ function serialize(tx::TxIn)
     return result
 end
 
-function txinserialize(tx::TxIn)
-    result = copy(tx.prev_tx)
-    reverse!(result)
-    append!(result, int2bytes(tx.prev_index, 4, true))
-    append!(result, scriptserialize(tx.script_sig))
-    append!(result, int2bytes(tx.sequence, 4, true))
-    return result
-end
-
 function fetch(tx::TxIn, testnet::Bool=false)
     return fetch(bytes2hex(tx.prev_tx), testnet)
-end
-
-function txin_fetchtx(tx::TxIn, testnet::Bool=false)
-    return txfetch(bytes2hex(tx.prev_tx), testnet)
 end
 
 """
@@ -132,11 +90,6 @@ Get the outpoint value by looking up the tx hash
 Returns the amount in satoshi
 """
 function value(txin::TxIn, testnet::Bool=false)
-    tx = fetch(txin, testnet)
-    return tx.tx_outs[txin.prev_index + 1].amount
-end
-
-function txinvalue(txin::TxIn, testnet::Bool=false)
     tx = fetch(txin, testnet)
     return tx.tx_outs[txin.prev_index + 1].amount
 end
@@ -152,12 +105,6 @@ function script_pubkey(txin::TxIn, testnet::Bool=false)
     tx = fetch(txin, testnet)
     return tx.tx_outs[txin.prev_index + 1].script_pubkey
 end
-
-function txin_scriptpubkey(txin::TxIn, testnet::Bool=false)
-    tx = fetch(txin, testnet)
-    return tx.tx_outs[txin.prev_index + 1].script_pubkey
-end
-
 
 struct TxOut <: TxComponent
     amount::UInt64
@@ -191,12 +138,6 @@ Returns the byte serialization of the transaction output
 function serialize(tx::TxOut)
     result = int2bytes(tx.amount, 8, true)
     append!(result, serialize(tx.script_pubkey))
-    return result
-end
-
-function txoutserialize(tx::TxOut)
-    result = int2bytes(tx.amount, 8, true)
-    append!(result, scriptserialize(tx.script_pubkey))
     return result
 end
 
@@ -283,15 +224,6 @@ function parse(s::IOBuffer, testnet::Bool=false)::Tx
     f(s, testnet)
 end
 
-"""
-txparse(s::Base.GenericIOBuffer, testnet::Bool=false) -> Tx
-
-Returns a Tx object given a byte stream
-"""
-function txparse(s::IOBuffer, testnet::Bool=false)
-    parse_legacy(s, testnet)
-end
-
 function payload2tx(payload::Array{UInt8,1})
     txparse(IOBuffer(payload))
 end
@@ -342,22 +274,10 @@ function serialize_segwit(tx::Tx)
     return result
 end
 
-function txserialize(tx::Tx)
-    serialize_legacy(tx::Tx)
-end
-
-
 """
 Binary hash of the legacy serialization
 """
 function hash(tx::Tx)
-    return reverse(hash256(serialize_legacy(tx)))
-end
-
-"""
-Binary hash of the legacy serialization
-"""
-function txhash(tx::Tx)
     return reverse(hash256(serialize_legacy(tx)))
 end
 
@@ -370,27 +290,12 @@ function id(tx::Tx)
     return bytes2hex(hash(tx))
 end
 
-function txid(tx::Tx)
-    return bytes2hex(txhash(tx))
-end
-
 """
     fee(tx::Tx) -> Integer
 
 Returns the fee of this transaction in satoshi
 """
 function fee(tx::Tx)
-    input_sum, output_sum = 0, 0
-    for tx_in in tx.tx_ins
-        input_sum += value(tx_in, tx.testnet)
-    end
-    for tx_out in tx.tx_outs
-        output_sum += tx_out.amount
-    end
-    return input_sum - output_sum
-end
-
-function txfee(tx::Tx)
     input_sum, output_sum = 0, 0
     for tx_in in tx.tx_ins
         input_sum += value(tx_in, tx.testnet)
@@ -437,36 +342,12 @@ function sig_hash(tx::Tx, input_index::Integer, redeem_script::Union{Script,Noth
     return hash256(s)
 end
 
-function txsighash256(tx::Tx, input_index::Integer)
-    alt_tx_ins = TxIn[]
-    for tx_in in tx.tx_ins
-        alt_tx_in = TxIn(tx_in.prev_tx, tx_in.prev_index, Script(nothing), tx_in.sequence)
-        push!(alt_tx_ins, alt_tx_in)
-    end
-    signing_input = alt_tx_ins[input_index + 1]
-    script_pubkey = script_pubkey(signing_input, tx.testnet)
-    signing_input.script_sig = script_pubkey
-    alt_tx = Tx(
-        tx.version,
-        alt_tx_ins,
-        tx.tx_outs,
-        tx.locktime)
-    result = UInt8[]
-    append!(result, serialize(alt_tx))
-    append!(result, int2bytes(SIGHASH_ALL, 4, true))
-    return hash256(result)
-end
-
-function txsighash(tx::Tx, input_index::Integer)::BigInt
-    return bytes2int(txsighash256(tx, input_index)::Array{UInt8,1})
-end
-
 function hash_prevouts(tx::Tx)
     if tx._hash_prevouts == nothing
         all_prevouts = UInt8[]
         all_sequence = UInt8[]
         for tx_in in tx.tx_ins
-            append!(all_prevouts, circshift(tx_in.prev_tx, -1))
+            append!(all_prevouts, reverse!(copy(tx_in.prev_tx)))
             append!(all_prevouts, reinterpret(UInt8, [htol(tx_in.prev_index)]))
             append!(all_sequence, reinterpret(UInt8, [htol(tx_in.sequence)]))
             tx._hash_prevouts = hash256(all_prevouts)
@@ -499,24 +380,24 @@ end
 Returns the integer representation of the hash that needs to get
 signed for index input_index
 """
-function sig_hash_bip143(tx::Tx, input_index::Integer; redeem_script::Script=Script(nothing), witness_script::Script=Script(nothing))
+function sig_hash_bip143(tx::Tx, input_index::Integer; redeem_script::Union{Script,Nothing}=nothing, witness_script::Union{Script,Nothing}=nothing)
     tx_in = tx.tx_ins[input_index+1]
     # per BIP143 spec
     s = Array(reinterpret(UInt8, [htol(tx.version)]))
     append!(s, hash_prevouts(tx))
     append!(s, hash_sequence(tx))
-    append!(s, circshift(tx_in.prev_tx, -1))
+    append!(s, reverse!(copy(tx_in.prev_tx)))
     append!(s, reinterpret(UInt8, [htol(tx_in.prev_index)]))
 
-    if witness_script != Script(nothing)
+    if witness_script != nothing
         script_code = serialize(witness_script)
-    elseif redeem_script != Script(nothing)
+    elseif redeem_script != nothing
         script_code = serialize(p2pkh_script(redeem_script.instructions[2]))
     else
-        script_code = serialize(p2pkh_script(script_pubkey(tx_in, tx.testnet)).instructions[2])
+        script_code = serialize(p2pkh_script(script_pubkey(tx_in, tx.testnet).instructions[2]))
     end
     append!(s, script_code)
-    append!(s, reinterpret(UInt8, [htol(value(tx_in))]))
+    append!(s, reinterpret(UInt8, [htol(value(tx_in, tx.testnet))]))
     append!(s, reinterpret(UInt8, [htol(tx_in.sequence)]))
     append!(s, hash_outputs(tx))
     append!(s, reinterpret(UInt8, [htol(tx.locktime)]))
@@ -524,20 +405,6 @@ function sig_hash_bip143(tx::Tx, input_index::Integer; redeem_script::Script=Scr
 
     return hash256(s)
 end
-
-
-"""
-Returns whether the input has a valid signature
-"""
-function txinputverify(tx::Tx, input_index)
-    tx_in = tx.tx_ins[input_index + 1]
-    z = txsighash(tx, input_index)
-    combined_script = Script(copy(tx_in.script_sig.instructions))
-    append!(combined_script.instructions,
-            script_pubkey(tx_in, tx.testnet).instructions)
-    return scriptevaluate(combined_script, z)
-end
-
 
 """
     verify(tx::Tx, input_index) -> Bool
@@ -556,10 +423,10 @@ function verify(tx::Tx, input_index)
             z = sig_hash_bip143(tx, input_index, redeem_script=redeem_script)
             witness = tx_in.witness
         elseif is_p2wsh(redeem_script)
-            raw_witness = tx_in.witness[end]
-            length_ = encode_varint(length(command))
-            pushfirst!(raw_witness, length_)
-            witness_script = parse(IOBuffer(raw_witness))::Script
+            raw_witness = copy(tx_in.witness.instructions[end])
+            length_ = encode_varint(length(raw_witness))
+            prepend!(raw_witness, length_)
+            witness_script = scriptparse(IOBuffer(raw_witness))
             z = sig_hash_bip143(tx, input_index, witness_script=witness_script)
             witness = tx_in.witness
         else
@@ -571,9 +438,9 @@ function verify(tx::Tx, input_index)
             z = sig_hash_bip143(tx, input_index)
             witness = tx_in.witness
         elseif is_p2wsh(script_pubkey_)
-            raw_witness = tx_in.witness[end]
+            raw_witness = copy(tx_in.witness.instructions[end])
             length_ = encode_varint(length(raw_witness))
-            pushfirst!(raw_witness, length_)
+            prepend!(raw_witness, length_)
             witness_script = scriptparse(IOBuffer(raw_witness))
             z = sig_hash_bip143(tx, input_index, witness_script=witness_script)
             witness = tx_in.witness
@@ -604,19 +471,6 @@ function verify(tx::Tx)
     end
     return true
 end
-
-function txverify(tx::Tx)
-    if fee(tx) < 0
-        return false
-    end
-    for i in 1:length(tx.tx_ins)
-        if !txinputverify(tx, i - 1)
-            return false
-        end
-    end
-    return true
-end
-
 
 """
 Signs the input using the private key
@@ -678,4 +532,4 @@ end
 @deprecate txin_scriptpubkey(txin::TxIn, testnet::Bool) script_pubkey(txin::TxIn, testnet::Bool)
 @deprecate txinserialize(tx::TxIn) serialize(tx::TxIn)
 @deprecate txin_fetchtx(tx::TxIn, testnet::Bool) fetch(tx::TxIn, testnet::Bool)
-@deprecate txfetch(tx_id::String, testnet::Bool, fresh::Bool, fetcher::Fetcher) fetch(tx_id::String, testnet::Bool)
+@deprecate txfetch(tx_id::String, testnet::Bool) fetch(tx_id::String, testnet::Bool)

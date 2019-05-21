@@ -1,14 +1,14 @@
 """
 Double sha256 function
 """
-function hash256(x::Array{UInt8, 1})
+function hash256(x::Vector{UInt8})
     return sha256(sha256(x))
 end
 
 """
 read_varint reads a variable integer from a stream
 """
- function read_varint(s::Base.GenericIOBuffer{Array{UInt8,1}})
+ function read_varint(s::Base.GenericIOBuffer{Vector{UInt8}})
      i = UInt8[]
      readbytes!(s, i, 1)
      if i == [0xfd]
@@ -57,11 +57,11 @@ serialize(x::VarString) = append!(encode_varint(x.len), x.str)
 io2varstring(io::IOBuffer) = VarString(String(read(io, read_varint(io))))
 
 """
-    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+    bytes2flags(bytes::Vector{UInt8}) -> Vector{Bool}
 
-Returns an Array{Bool,1} representing bits
+Returns an Vector{Bool} representing bits
 """
-function bytes2flags(bytes::Array{UInt8,1})
+function bytes2flags(bytes::Vector{UInt8})
     result = Bool[]
     for byte in bytes
         for i in 0:7
@@ -72,11 +72,11 @@ function bytes2flags(bytes::Array{UInt8,1})
 end
 
 """
-    bytes2flags(bytes::Array{UInt8,1}) -> Array{Bool,1}
+    bytes2flags(bytes::Vector{UInt8}) -> Vector{Bool}
 
-Returns an Array{Bool,1} representing bits
+Returns an Vector{Bool} representing bits
 """
-function flags2bytes(flags::Array{Bool,1})
+function flags2bytes(flags::Vector{Bool})
     if mod(length(flags), 8) != 0
         error("flags does not have a length that is divisible by 8")
     end
@@ -92,5 +92,5 @@ function flags2bytes(flags::Array{Bool,1})
     result
 end
 
-# @deprecate read_varint(s::Base.GenericIOBuffer{Array{UInt8,1}}) read(io::IOBuffer)::CompactSizeUInt
+# @deprecate read_varint(s::Base.GenericIOBuffer{Vector{UInt8}}) read(io::IOBuffer)::CompactSizeUInt
 # @deprecate encode_varint(n::Integer) serialize(n::CompactSizeUInt)

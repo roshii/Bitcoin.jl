@@ -14,7 +14,7 @@ end
     value ⊻= ((value & 0xffffffff) >> 16)
 end
 
-function hash32(data::Array{UInt8,1}, seed::UInt32=zero(UInt32))
+function hash32(data::Vector{UInt8}, seed::UInt32=zero(UInt32))
     c1 = 0xcc9e2d51
     c2 = 0x1b873593
     h = seed
@@ -61,8 +61,7 @@ function hash32(data::Array{UInt8,1}, seed::UInt32=zero(UInt32))
 
 end
 
-hash32(data::Array{UInt8}, seed::Int) = hash32(data, UInt32(seed))
-hash32(data::Array{UInt8}) = hash32(data, UInt32(0))
+hash32(data::Vector{UInt8}, seed::Int) = hash32(data, UInt32(seed))
 hash32(data::AbstractString, seed::UInt32) = hash32(UInt8.(collect(data)), seed)
 hash32(data::AbstractString, seed::Int) = hash32(UInt8.(collect(data)), UInt32(seed))
 hash32(data::AbstractString) = hash32(UInt8.(collect(data)), UInt32(0))

@@ -1,9 +1,9 @@
 """
-    Array{UInt8,1} -> String
+    Vector{UInt8} -> String
 
 Returns a String representing a Bitcoin address
 """
-function h160_2_address(h160::Array{UInt8,1}, testnet::Bool=false, type::String="P2SH")
+function h160_2_address(h160::Vector{UInt8}, testnet::Bool=false, type::String="P2SH")
     testnet ? i = 1 : i = 2
     result = copy(h160)
     result = pushfirst!(result, SCRIPT_TYPES[type][i])

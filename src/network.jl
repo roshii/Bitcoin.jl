@@ -5,11 +5,11 @@ struct NetworkEnvelope
     command::String
     length::UInt32
     checksum::UInt32
-    payload::Array{UInt8,1}
-    NetworkEnvelope(magic::UInt32, command::AbstractString, length::Integer, checksum::UInt32, payload::Array{UInt8,1}) = new(magic, command, length, checksum, payload)
+    payload::Vector{UInt8}
+    NetworkEnvelope(magic::UInt32, command::AbstractString, length::Integer, checksum::UInt32, payload::Vector{UInt8}) = new(magic, command, length, checksum, payload)
 end
 
-NetworkEnvelope(command::AbstractString, payload::Array{UInt8,1}, testnet=false) = NetworkEnvelope(NETWORK_MAGIC[testnet], command, length(payload), reinterpret(UInt32, hash256(payload))[1], payload)
+NetworkEnvelope(command::AbstractString, payload::Vector{UInt8}, testnet=false) = NetworkEnvelope(NETWORK_MAGIC[testnet], command, length(payload), reinterpret(UInt32, hash256(payload))[1], payload)
 NetworkEnvelope(command::AbstractString, payload::AbstractMessage, testnet=false) = NetworkEnvelope(command, serialize(payload), testnet)
 
 function show(io::IO, z::NetworkEnvelope)
@@ -17,7 +17,7 @@ function show(io::IO, z::NetworkEnvelope)
 end
 
 """
-    IOBuffer, Bool -> Array{NetworkEnvelope,1}
+    IOBuffer, Bool -> Vector{NetworkEnvelope}
 
 Takes a stream and creates a NetworkEnvelope
 """
@@ -53,7 +53,7 @@ function io2envelopes(s::IOBuffer, testnet::Bool=false)
     result
 end
 
-function io2envelopes(bin::Array{UInt8,1}, testnet::Bool=false)
+function io2envelopes(bin::Vector{UInt8}, testnet::Bool=false)
     s = IOBuffer(bin)
     io2envelopes(s, testnet)
 end
@@ -88,7 +88,7 @@ end
 Returns the byte serialization of the entire network message
 """
 function serialize(envelope::NetworkEnvelope)
-    result = Array(reinterpret(UInt8, [htol(envelope.magic)]))
+    result = Vector(reinterpret(UInt8, [htol(envelope.magic)]))
     append!(result, UInt8.(collect(envelope.command)))
     append!(result, fill(0x00, (12 - length(envelope.command))))
     append!(result, int2bytes(length(envelope.payload), 4, true))
@@ -112,7 +112,7 @@ function show(io::IO, z::Peer)
 end
 
 """
-    IPv4 -> Array{UInt8,1}
+    IPv4 -> Vector{UInt8}
 
 Return an 16 bytes UInt8 array representing the IP address
 
@@ -126,10 +126,10 @@ IPv4 address).
 function ip2bytes(ip::IPv4)
     result = fill(0x00, 10)
     append!(result, [0xff, 0xff])
-    append!(result, Array(reinterpret(UInt8, [hton(ip.host)])))
+    append!(result, Vector(reinterpret(UInt8, [hton(ip.host)])))
 end
 
-function bytes2ip(bin::Array{UInt8,1})
+function bytes2ip(bin::Vector{UInt8})
     if bin[1:12] == IPV4_PREFIX
         IPv4(ntoh(reinterpret(UInt32, bin[13:16])[1]))
     else
@@ -138,26 +138,26 @@ function bytes2ip(bin::Array{UInt8,1})
 end
 
 """
-    Peer -> Array{UInt8,1}
+    Peer -> Vector{UInt8}
 
 Returns the serialization of a Peer
 """
 function serialize(peer::Peer, versionmessage::Bool=false)
     result = UInt8[]
     if !versionmessage
-        append!(result, Array(reinterpret(UInt8, [htol(peer.time)])))
+        append!(result, Vector(reinterpret(UInt8, [htol(peer.time)])))
     end
-    append!(result, Array(reinterpret(UInt8, [htol(peer.services)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(peer.services)])))
     append!(result, ip2bytes(peer.ip))
-    append!(result, Array(reinterpret(UInt8, [hton(peer.port)])))
+    append!(result, Vector(reinterpret(UInt8, [hton(peer.port)])))
 end
 
 """
-    parse_peer(payload::Array{UInt8,1}) -> Peer
+    parse_peer(payload::Vector{UInt8}) -> Peer
 
 Parse Peer from bytes arrays
 """
-function parse_peer(payload::Array{UInt8,1}, versionmessage::Bool=false)
+function parse_peer(payload::Vector{UInt8}, versionmessage::Bool=false)
     io = IOBuffer(payload)
     if versionmessage
         time = ltoh(reinterpret(UInt32, read(io, 4))[1])
@@ -207,28 +207,28 @@ function show(io::IO, z::VersionMessage)
 end
 
 """
-    serialize(version::VersionMessage) -> Array{UInt8,1}
+    serialize(version::VersionMessage) -> Vector{UInt8}
 
 Serialize this message to send over the network
 """
 function serialize(version::VersionMessage)
-    result = Array(reinterpret(UInt8, [htol(version.version)]))
-    append!(result, Array(reinterpret(UInt8, [htol(version.services)])))
-    append!(result, Array(reinterpret(UInt8, [htol(version.timestamp)])))
+    result = Vector(reinterpret(UInt8, [htol(version.version)]))
+    append!(result, Vector(reinterpret(UInt8, [htol(version.services)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(version.timestamp)])))
     append!(result, serialize(version.receiver, true))
     append!(result, serialize(version.sender, true))
-    append!(result, Array(reinterpret(UInt8, [htol(version.nonce)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(version.nonce)])))
     append!(result, serialize(VarString(version.user_agent)))
-    append!(result, Array(reinterpret(UInt8, [htol(version.start_height)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(version.start_height)])))
     version.relay ? append!(result, [0x01]) : append!(result, [0x00])
     return result
 end
 
 """
-    serialize(version::VersionMessage) -> Array{UInt8,1}
+    serialize(version::VersionMessage) -> Vector{UInt8}
 
 """
-function payload2version(payload::Array{UInt8,1})
+function payload2version(payload::Vector{UInt8})
     io = IOBuffer(payload)
     version = ltoh(reinterpret(UInt32, read(io, 4))[1])
     services = ltoh(reinterpret(UInt64, read(io, 8))[1])
@@ -247,27 +247,27 @@ struct VerAckMessage <: AbstractMessage
     VerAckMessage() = new("verack")
 end
 
-payload2verack(payload::Array{UInt8,1}) = VerAckMessage()
+payload2verack(payload::Vector{UInt8}) = VerAckMessage()
 
 serialize(::VerAckMessage) = UInt8[]
 
 struct PingMessage <: AbstractMessage
     command::String
-    nonce::Array{UInt8,1}
+    nonce::Vector{UInt8}
     PingMessage(nonce) = new("ping", nonce)
 end
 
-payload2ping(payload::Array{UInt8,1}) = PingMessage(payload)
+payload2ping(payload::Vector{UInt8}) = PingMessage(payload)
 
 serialize(ping::PingMessage) = ping.nonce
 
 struct PongMessage <: AbstractMessage
     command::String
-    nonce::Array{UInt8,1}
+    nonce::Vector{UInt8}
     PongMessage(nonce) = new("pong", nonce)
 end
 
-payload2pong(payload::Array{UInt8,1}) = PongMessage(payload)
+payload2pong(payload::Vector{UInt8}) = PongMessage(payload)
 
 serialize(pong::PongMessage) = pong.nonce
 
@@ -275,12 +275,12 @@ struct GetHeadersMessage <: AbstractMessage
     command::String
     version::UInt32
     num_hashes::Integer
-    start_block::Array{UInt8,1}
-    end_block::Array{UInt8,1}
-    GetHeadersMessage(version::Integer, num_hashes::Integer, start_block::Array{UInt8,1}, end_block::Array{UInt8,1}=fill(0x00, 32)) = new("getheaders", version, num_hashes, start_block, end_block)
+    start_block::Vector{UInt8}
+    end_block::Vector{UInt8}
+    GetHeadersMessage(version::Integer, num_hashes::Integer, start_block::Vector{UInt8}, end_block::Vector{UInt8}=fill(0x00, 32)) = new("getheaders", version, num_hashes, start_block, end_block)
 end
 
-GetHeadersMessage(start_block::Array{UInt8,1}) = GetHeadersMessage(DEFAULT["version"], 1, start_block)
+GetHeadersMessage(start_block::Vector{UInt8}) = GetHeadersMessage(DEFAULT["version"], 1, start_block)
 
 """
 Serialize this message to send over the network
@@ -299,8 +299,8 @@ end
 
 struct HeadersMessage <: AbstractMessage
     command::String
-    headers::Array{BlockHeader,1}
-    HeadersMessage(headers::Array{BlockHeader,1}) = new("headers", headers)
+    headers::Vector{BlockHeader}
+    HeadersMessage(headers::Vector{BlockHeader}) = new("headers", headers)
 end
 
 """
@@ -311,7 +311,7 @@ end
     # read the next varint (num_txs)
     # num_txs should be 0 or raise a RuntimeError
 """
-function payload2headers(payload::Array{UInt8,1})
+function payload2headers(payload::Vector{UInt8})
     io = IOBuffer(payload)
     payload2headers(io)
 end
@@ -332,13 +332,13 @@ end
 
 mutable struct GetDataMessage <: AbstractMessage
     command::String
-    data::Array{Tuple{Integer,Array{UInt8,1}},1}
-    GetDataMessage(data::Array{Tuple{Integer,Array{UInt8,1}},1}=Tuple{Integer,Array{UInt8,1}}[]) = new("getdata", data)
+    data::Vector{Tuple{Integer,Vector{UInt8}}}
+    GetDataMessage(data::Vector{Tuple{Integer,Vector{UInt8}}}=Tuple{Integer,Vector{UInt8}}[]) = new("getdata", data)
 end
 
 import Base.append!
 
-function append!(x::GetDataMessage, type::Integer, identifier::Array{UInt8,1})
+function append!(x::GetDataMessage, type::Integer, identifier::Vector{UInt8})
     push!(x.data, (type, identifier))
 end
 
@@ -356,8 +356,8 @@ mutable struct RejectMessage <: AbstractMessage
     message::String
     ccode::Char
     reason::String
-    data::Array{UInt8,1}
-    RejectMessage(message::String, ccode::Char, reason::String, data::Array{UInt8,1}) = new("reject", message, ccode, reason, data)
+    data::Vector{UInt8}
+    RejectMessage(message::String, ccode::Char, reason::String, data::Vector{UInt8}) = new("reject", message, ccode, reason, data)
 end
 
 function show(io::IO, z::RejectMessage)
@@ -367,11 +367,11 @@ function show(io::IO, z::RejectMessage)
 end
 
 """
-    payload2reject(payload::Array{UInt8,1}) -> RejectMessage
+    payload2reject(payload::Vector{UInt8}) -> RejectMessage
 
 Parse RejectMessage from NetworkEnvelope payload
 """
-function payload2reject(payload::Array{UInt8,1})
+function payload2reject(payload::Vector{UInt8})
     io = IOBuffer(payload)
     message = io2varstring(io).str
     ccode = Char(read(io, 1)[1])
@@ -385,12 +385,12 @@ mutable struct MerkleBlockMessage <: AbstractMessage
     header::BlockHeader
     tx_count::UInt32
     hash_count::Unsigned
-    hashes::Array{Array{UInt8,1},1}
+    hashes::Vector{Vector{UInt8}}
     flag_byte_count::Unsigned
-    flags::Array{Bool,1}
+    flags::Vector{Bool}
     MerkleBlockMessage(header::BlockHeader, tx_count::Integer,
-                  hash_count, hashes::Array{Array{UInt8,1},1}, flag_byte_count,
-                  flags::Array{Bool,1}) = new("merkleblock",
+                  hash_count, hashes::Vector{Vector{UInt8}}, flag_byte_count,
+                  flags::Vector{Bool}) = new("merkleblock",
                   header, tx_count, hash_count, hashes, flag_byte_count, flags)
 end
 
@@ -401,16 +401,16 @@ function show(io::IO, z::MerkleBlockMessage)
 end
 
 """
-    payload2merkleblock(payload::Array{UInt8,1}) -> MerkleBlockMessage
+    payload2merkleblock(payload::Vector{UInt8}) -> MerkleBlockMessage
 
 Parse MerkleBlockMessage from NetworkEnvelope payload
 """
-function payload2merkleblock(payload::Array{UInt8,1})
+function payload2merkleblock(payload::Vector{UInt8})
     io = IOBuffer(payload)
     header = io2blockheader(io)
     tx_count = ltoh(reinterpret(UInt32, read(io, 4))[1])
     hash_count = read_varint(io)
-    hashes = Array{UInt8,1}[]
+    hashes = Vector{UInt8}[]
     for i in 1:hash_count
          push!(hashes, read(io, 32))
     end
@@ -433,8 +433,8 @@ end
 struct FilterAddMessage <: AbstractMessage
     command::String
     element_bytes::Unsigned
-    element::Array{UInt8,1}
-    FilterAddMessage(element_bytes::Unsigned, element::Array{UInt8,1}) = new("filteradd", element_bytes, element)
+    element::Vector{UInt8}
+    FilterAddMessage(element_bytes::Unsigned, element::Vector{UInt8}) = new("filteradd", element_bytes, element)
 end
 
 struct FilterClearMessage <: AbstractMessage
@@ -445,11 +445,11 @@ end
 struct FilterLoadMessage <: AbstractMessage
     command::String
     n_filter_bytes::Unsigned
-    filter::Array{Bool,1}
+    filter::Vector{Bool}
     n_hash_funcs::UInt32
     n_tweak::UInt32
     n_flags::UInt8
-    FilterLoadMessage(n_filter_bytes::Unsigned, filter::Array{Bool,1}, n_hash_funcs::UInt32, n_tweak::UInt32, n_flags::UInt8) = new("filterload", n_filter_bytes, filter, n_hash_funcs, n_tweak, n_flags)
+    FilterLoadMessage(n_filter_bytes::Unsigned, filter::Vector{Bool}, n_hash_funcs::UInt32, n_tweak::UInt32, n_flags::UInt8) = new("filterload", n_filter_bytes, filter, n_hash_funcs, n_tweak, n_flags)
 end
 
 FilterLoadMessage(bf::BloomFilter, flag::UInt8=0x01) = FilterLoadMessage(bf.size, bf.bit_field, bf.function_count, bf.tweak, flag)
@@ -457,8 +457,8 @@ FilterLoadMessage(bf::BloomFilter, flag::UInt8=0x01) = FilterLoadMessage(bf.size
 function serialize(msg::FilterLoadMessage)
     payload = encode_varint(msg.n_filter_bytes)
     append!(payload, flags2bytes(msg.filter))
-    append!(payload, Array(reinterpret(UInt8, [htol(msg.n_hash_funcs)])))
-    append!(payload, Array(reinterpret(UInt8, [htol(msg.n_tweak)])))
+    append!(payload, Vector(reinterpret(UInt8, [htol(msg.n_hash_funcs)])))
+    append!(payload, Vector(reinterpret(UInt8, [htol(msg.n_tweak)])))
     append!(payload, msg.n_flags%UInt8)
 end
 
@@ -471,7 +471,7 @@ SendHeadersMessage(::Any) = SendHeadersMessage()
 
 struct InventoryVector
     type::Integer
-    hash::Array{UInt8,1}
+    hash::Vector{UInt8}
     InventoryVector(type, hash) = new(type, hash)
 end
 
@@ -480,7 +480,7 @@ function show(io::IO, z::InventoryVector)
           " :\n", bytes2hex(z.hash))
 end
 
-function payload2inventoryvector(payload::Array{UInt8,1})
+function payload2inventoryvector(payload::Vector{UInt8})
     type = ltoh(reinterpret(UInt32, payload[1:4])[1])
     hash = payload[5:26]
     InventoryVector(type, hash)
@@ -489,11 +489,11 @@ end
 struct InvMessage <: AbstractMessage
     command::String
     count::Integer
-    inventory::Array{InventoryVector,1}
-    InvMessage(inv_count::Integer, inventory::Array{InventoryVector,1}) = new("inv", inv_count, inventory)
+    inventory::Vector{InventoryVector}
+    InvMessage(inv_count::Integer, inventory::Vector{InventoryVector}) = new("inv", inv_count, inventory)
 end
 
-function payload2inv(payload::Array{UInt8,1})
+function payload2inv(payload::Vector{UInt8})
     io = IOBuffer(payload)
     inv_count = read_varint(io)
     inventory = InventoryVector[]
@@ -511,7 +511,7 @@ struct SendCmpctMessage <: AbstractMessage
     SendCmpctMessage(announce::Bool, version::UInt64) = new("sendcmpct", announce, version)
 end
 
-function payload2sendcmpct(payload::Array{UInt8,1})
+function payload2sendcmpct(payload::Vector{UInt8})
     annouce = Bool(payload[1])
     version = ltoh(reinterpret(UInt64, payload[2:9])[1])
     SendCmpctMessage(annouce, version)
@@ -523,18 +523,18 @@ struct FeeFilterMessage <: AbstractMessage
     FeeFilterMessage(feerate::UInt64) = new("feefilter", feerate)
 end
 
-function payload2feefilter(payload::Array{UInt8,1})
+function payload2feefilter(payload::Vector{UInt8})
     feerate = ltoh(reinterpret(UInt64, payload[1:8])[1])
     SendCmpctMessage(feerate)
 end
 
 struct AddrMessage <: AbstractMessage
     n::Unsigned
-    addr::Array{IPAddr,1}
-    FeeFilterMessage(n::Integer, addr::Array{IPAddr,1}) = new("addr", n, addr)
+    addr::Vector{IPAddr}
+    FeeFilterMessage(n::Integer, addr::Vector{IPAddr}) = new("addr", n, addr)
 end
 
-function payload2addr(payload::Array{UInt8,1})
+function payload2addr(payload::Vector{UInt8})
     io = IOBuffer(payload)
     n = read_varint(io)
     addr = IPAddr[]

@@ -4,8 +4,8 @@ abstract type AbstractBlock end
 
 struct BlockHeader <: AbstractBlock
     version::UInt32
-    prev_block::Array{UInt8,1}
-    merkle_root::Array{UInt8,1}
+    prev_block::Vector{UInt8}
+    merkle_root::Vector{UInt8}
     timestamp::UInt32
     bits::UInt32
     nonce::UInt32
@@ -38,13 +38,13 @@ end
 Returns the 80 byte block header
 """
 function serialize(block::BlockHeader)
-    result = Array(reinterpret(UInt8, [htol(block.version)]))
+    result = Vector(reinterpret(UInt8, [htol(block.version)]))
     prev_block = copy(block.prev_block)
     append!(result, prev_block)
     append!(result, block.merkle_root)
-    append!(result, Array(reinterpret(UInt8, [htol(block.timestamp)])))
-    append!(result, Array(reinterpret(UInt8, [htol(block.bits)])))
-    append!(result, Array(reinterpret(UInt8, [htol(block.nonce)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(block.timestamp)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(block.bits)])))
+    append!(result, Vector(reinterpret(UInt8, [htol(block.nonce)])))
 end
 
 """
@@ -132,13 +132,13 @@ function check_pow(block::BlockHeader)
 end
 
 """
-    validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
+    validate_merkle_root(block::BlockHeader, hashes::Vector{Vector{UInt8}})
     -> Bool
 
 Gets the merkle root of the hashes and checks that it's
 the same as the merkle root of this block header.
 """
-function validate_merkle_root(block::BlockHeader, hashes::Array{Array{UInt8,1},1})
+function validate_merkle_root(block::BlockHeader, hashes::Vector{Vector{UInt8}})
     hashes = [reverse!(copy(h)) for h in hashes]
     root = merkle_root(hashes)
     merkle_root(hashes) == block.merkle_root
@@ -149,5 +149,5 @@ struct Block <: AbstractBlock
     size::UInt32
     header::BlockHeader
     tx_counter
-    tx::Array{UInt8,1}
+    tx::Vector{UInt8}
 end

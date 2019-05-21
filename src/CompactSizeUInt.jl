@@ -66,7 +66,7 @@ function read(io::IOBuffer)::CompactSizeUInt
 end
 
 """
-    serialize(n::CompactSizeUInt) -> Array{UInt8,1}
+    serialize(n::CompactSizeUInt) -> Vector{UInt8}
 
 Returns the bytes serialization of a CompactSizeUInt
 """

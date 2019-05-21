@@ -2,7 +2,7 @@ BIP37_CONSTANT = 0xfba4c795
 
 struct BloomFilter
     size::Unsigned
-    bit_field::Array{Bool,1}
+    bit_field::Vector{Bool}
     function_count::UInt32
     tweak::UInt32
     BloomFilter(size::Integer, function_count::Integer, tweak::Integer) = new(size, fill(false, size * 8), function_count, tweak)
@@ -22,7 +22,7 @@ end
 
 
 """
-Returns an Array{UInt8,1} representing the flagbits.
+Returns an Vector{UInt8} representing the flagbits.
 """
 function filter_bytes(bf::BloomFilter)
     flags2bytes(bf.bit_field)

@@ -36,7 +36,7 @@ end
 abstract type TxComponent end
 
 mutable struct TxIn <: TxComponent
-    prev_tx::Array{UInt8,1}
+    prev_tx::Vector{UInt8}
     prev_index::UInt32
     script_sig::Script
     witness::Script
@@ -66,7 +66,7 @@ function txinparse(s::IOBuffer)
 end
 
 """
-    serialize(tx::TxIn) -> Array{UInt8,1}
+    serialize(tx::TxIn) -> Vector{UInt8}
 
 Returns the byte serialization of the transaction input
 """
@@ -131,7 +131,7 @@ function txoutparse(s::Base.GenericIOBuffer)
 end
 
 """
-    serialize(tx::TxOut) -> Array{UInt8,1}
+    serialize(tx::TxOut) -> Vector{UInt8}
 
 Returns the byte serialization of the transaction output
 """
@@ -143,8 +143,8 @@ end
 
 mutable struct Tx <: TxComponent
     version::UInt32
-    tx_ins::Array{TxIn, 1}
-    tx_outs::Array{TxOut, 1}
+    tx_ins::Vector{TxIn}
+    tx_outs::Vector{TxOut}
     locktime::UInt32
     testnet::Bool
     segwit::Bool
@@ -224,12 +224,12 @@ function parse(s::IOBuffer, testnet::Bool=false)::Tx
     f(s, testnet)
 end
 
-function payload2tx(payload::Array{UInt8,1})
+function payload2tx(payload::Vector{UInt8})
     txparse(IOBuffer(payload))
 end
 
 """
-    serialize(tx::Tx) -> Array{UInt8,1}
+    serialize(tx::Tx) -> Vector{UInt8}
 
 Returns the byte serialization of the transaction
 """
@@ -264,7 +264,7 @@ function serialize_segwit(tx::Tx)
     for tx_in in tx.tx_ins
         append!(result, UInt8(length(tx_in.witness.instructions)))
         for item in tx_in.witness.instructions
-            if typeof(item) <: Array
+            if typeof(item) <: Vector
                 append!(result, encode_varint(length(item)))
             end
             append!(result, item)
@@ -307,12 +307,12 @@ function fee(tx::Tx)
 end
 
 """
-    sig_hash(tx::Tx, input_index::Integer)::Array{UInt8,1}
+    sig_hash(tx::Tx, input_index::Integer)::Vector{UInt8}
 
 Returns the hash that needs to get signed for index input_index
 """
 function sig_hash(tx::Tx, input_index::Integer, redeem_script::Union{Script,Nothing}=nothing)
-    s = Array(reinterpret(UInt8, [htol(tx.version)]))
+    s = Vector(reinterpret(UInt8, [htol(tx.version)]))
     append!(s, encode_varint(length(tx.tx_ins)))
 
     i, script_sig = 0, Script(nothing)
@@ -337,8 +337,8 @@ function sig_hash(tx::Tx, input_index::Integer, redeem_script::Union{Script,Noth
     for tx_out in tx.tx_outs
         append!(s, serialize(tx_out))
     end
-    append!(s, Array(reinterpret(UInt8, [htol(tx.locktime)])))
-    append!(s, Array(reinterpret(UInt8, [htol(SIGHASH_ALL)])))
+    append!(s, Vector(reinterpret(UInt8, [htol(tx.locktime)])))
+    append!(s, Vector(reinterpret(UInt8, [htol(SIGHASH_ALL)])))
     return hash256(s)
 end
 
@@ -383,7 +383,7 @@ signed for index input_index
 function sig_hash_bip143(tx::Tx, input_index::Integer; redeem_script::Union{Script,Nothing}=nothing, witness_script::Union{Script,Nothing}=nothing)
     tx_in = tx.tx_ins[input_index+1]
     # per BIP143 spec
-    s = Array(reinterpret(UInt8, [htol(tx.version)]))
+    s = Vector(reinterpret(UInt8, [htol(tx.version)]))
     append!(s, hash_prevouts(tx))
     append!(s, hash_sequence(tx))
     append!(s, reverse!(copy(tx_in.prev_tx)))

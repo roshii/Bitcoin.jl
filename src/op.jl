@@ -24,7 +24,7 @@ function encode_num(num::Integer)
     return result
 end
 
-function decode_num(element::Array{UInt8,1})
+function decode_num(element::Vector{UInt8})
     if isempty(element)
         return 0
     end
@@ -55,7 +55,7 @@ function decode_num(element::Array{UInt8,1})
     end
 end
 
-StackType = Array{Array{UInt8,1},1}
+StackType = Vector{Vector{UInt8}}
 
 function op_0(stack::StackType)
     push!(stack, encode_num(0))
@@ -152,7 +152,7 @@ function op_nop(stack::StackType)
 end
 
 # TODO verify actual behavior
-function op_if(stack::StackType, items::Array{UInt8,1})
+function op_if(stack::StackType, items::Vector{UInt8})
     if length(stack) < 1
         return false
     end
@@ -194,7 +194,7 @@ function op_if(stack::StackType, items::Array{UInt8,1})
     return true
 end
 
-function op_notif(stack::StackType, items::Array{UInt8,1})
+function op_notif(stack::StackType, items::Vector{UInt8})
     if length(stack) < 1
         return false
     end

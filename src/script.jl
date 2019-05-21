@@ -1,6 +1,6 @@
 mutable struct Script
-    instructions::Array{Any, 1}
-    Script(instructions::Nothing) = new(Union{UInt8, Array{UInt8, 1}}[])
+    instructions::Vector{Any}
+    Script(instructions::Nothing) = new(Union{UInt8, Vector{UInt8}}[])
     Script(instructions) = new(instructions)
 end
 
@@ -12,7 +12,7 @@ function show(io::IO, z::Script)
             else
                 print(io, "\n", string("OP_CODE_", Int(instruction)))
             end
-        elseif typeof(instruction) <: Array{UInt8,1}
+        elseif typeof(instruction) <: Vector{UInt8}
             print(io, "\n", bytes2hex(instruction))
         else
             print(io, "\n", instruction)
@@ -97,8 +97,8 @@ Evaluate if Script is valid given the transaction signature hash
 """
 function evaluate(s::Script, z::Integer, witness::Union{Script, Nothing}=nothing)
     instructions = copy(s.instructions)
-    stack = Array{UInt8, 1}[]
-    altstack = Array{UInt8, 1}[]
+    stack = Vector{UInt8}[]
+    altstack = Vector{UInt8}[]
     while length(instructions) > 0
         instruction = popfirst!(instructions)
         if typeof(instruction) <: Integer
@@ -133,7 +133,7 @@ function evaluate(s::Script, z::Integer, witness::Union{Script, Nothing}=nothing
             # OP_HASH160 <20 byte hash> OP_EQUAL this is the RedeemScript
             # OP_HASH160 == 0xa9 && OP_EQUAL == 0x87
             if length(instructions) == 3 && instructions[1] == 0xa9 &&
-               typeof(instructions[2]) == Array{UInt8,1} && length(instructions[2]) == 20 &&
+               typeof(instructions[2]) == Vector{UInt8} && length(instructions[2]) == 20 &&
                instructions[3] == 0x87
                 println(" ---- ==== !!!! P2SH Script Found !!!! ==== ---- ")
                 redeem_script = encode_varint(length(instruction))
@@ -192,7 +192,7 @@ function evaluate(s::Script, z::Integer, witness::Union{Script, Nothing}=nothing
     if length(stack) == 0
         return false
     end
-    if pop!(stack) == Array{UInt8,1}[]
+    if pop!(stack) == Vector{UInt8}[]
         return false
     end
     return true
@@ -201,8 +201,8 @@ end
 """
 Takes a hash160 && returns the p2pkh scriptPubKey
 """
-function p2pkh_script(h160::Array{UInt8,1})
-    script = Union{UInt8, Array{UInt8,1}}[]
+function p2pkh_script(h160::Vector{UInt8})
+    script = Union{UInt8, Vector{UInt8}}[]
     pushfirst!(script, 0x76, 0xa9)
     push!(script, h160, 0x88, 0xac)
     return Script(script)
@@ -211,8 +211,8 @@ end
 """
 Takes a hash160 && returns the p2sh scriptPubKey
 """
-function p2sh_script(h160::Array{UInt8,1})
-    script = Union{UInt8, Array{UInt8,1}}[]
+function p2sh_script(h160::Vector{UInt8})
+    script = Union{UInt8, Vector{UInt8}}[]
     pushfirst!(script, 0xa9)
     push!(script, h160, 0x87)
     return Script(script)
@@ -221,14 +221,14 @@ end
 """
 Takes a hash160 && returns the p2wpkh ScriptPubKey
 """
-function p2wpkh_script(h160::Array{UInt8,1})
+function p2wpkh_script(h160::Vector{UInt8})
     return Script([0x00, h160])
 end
 
 """
 Takes a hash160 && returns the p2wsh ScriptPubKey
 """
-function p2wsh_script(hash256::Array{UInt8,1})
+function p2wsh_script(hash256::Vector{UInt8})
     return Script([0x00, h256])
 end
 
@@ -254,7 +254,7 @@ function is_p2pkh(script::Script)
     return length(script.instructions) == 5 &&
         script.instructions[1] == 0x76 &&
         script.instructions[2] == 0xa9 &&
-        typeof(script.instructions[3]) == Array{UInt8,1} &&
+        typeof(script.instructions[3]) == Vector{UInt8} &&
         length(script.instructions[3]) == 20 &&
         script.instructions[4] == 0x88 &&
         script.instructions[5] == 0xac
@@ -267,7 +267,7 @@ OP_HASH160 <20 byte hash> OP_EQUAL pattern.
 function is_p2sh(script::Script)
     return length(script.instructions) == 3 &&
            script.instructions[1] == 0xa9 &&
-           typeof(script.instructions[2]) == Array{UInt8,1} &&
+           typeof(script.instructions[2]) == Vector{UInt8} &&
            length(script.instructions[2]) == 20 &&
            script.instructions[3] == 0x87
 end
@@ -275,7 +275,7 @@ end
 function is_p2wpkh(script::Script)
     length(script.instructions) == 2 &&
     script.instructions[1] == 0x00 &&
-    typeof(script.instructions[2]) == Array{UInt8,1} &&
+    typeof(script.instructions[2]) == Vector{UInt8} &&
     length(script.instructions[2]) == 20
 end
 
@@ -286,7 +286,7 @@ OP_0 <20 byte hash> pattern.
 function is_p2wsh(script::Script)
     length(script.instructions) == 2 &&
     script.instructions[1] == 0x00 &&
-    typeof(script.instructions[2]) == Array{UInt8,1} &&
+    typeof(script.instructions[2]) == Vector{UInt8} &&
     length(script.instructions[2]) == 32
 
 end

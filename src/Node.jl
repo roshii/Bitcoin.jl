@@ -84,7 +84,7 @@ function handshake(node::Node, messages::Channel)
 end
 
 """
-    getheaders(node::Node, stop::Integer, start::Integer=1) -> Array{BlockHeader,1}
+    getheaders(node::Node, stop::Integer, start::Integer=1) -> Vector{BlockHeader}
 
 Returns a list of blockheaders, from `start` to `stop` height
 !!!Experimental function, not tested as it should

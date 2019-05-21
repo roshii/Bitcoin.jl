@@ -5,7 +5,7 @@ license = "MIT"
 authors = ["Simon Castano <simon@brane.cc>"]
 description = "Bitcoin Library"
 repository = "https://gitlab.com/braneproject/Bitcoin.jl.git"
-version = "0.1.10"
+version = "0.1.11"
 
 [deps]
 Base58 = "a832ea1e-0ca7-55ca-a41a-6462721bb861"

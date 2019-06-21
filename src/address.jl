@@ -17,10 +17,10 @@ Returns the Base58 Bitcoin address given an S256Point
 Compressed is set to true if not provided.
 Testnet is set to false by default.
 """
-function address(P::T, compressed::Bool=true, testnet::Bool=false) where {T<:S256Point}
+function point2address(P::T, compressed::Bool=true, testnet::Bool=false, type::String="P2PKH") where {T<:S256Point}
     s = point2sec(P, compressed)
     h160 = ripemd160(sha256(s))
-    return h160_2_address(h160, testnet, "P2PKH")
+    return h160_2_address(h160, testnet, type)
 end
 
 """
@@ -44,3 +44,5 @@ function wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false)
         return String(base58checkencode(result))
     end
 end
+
+@deprecate address(P::T, compressed::Bool=true, testnet::Bool=false) point2address(P::T, compressed::Bool=true, testnet::Bool=false, type::String="P2PKH")

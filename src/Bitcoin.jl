@@ -1,6 +1,6 @@
 module Bitcoin
 
-using ECC, Base58
+using ECC, Base58, MerkleTrees
 using SHA: sha1, sha256
 using Ripemd: ripemd160
 using Dates: unix2datetime, datetime2unix, now
@@ -27,7 +27,7 @@ include("Block.jl")
 include("BloomFilter.jl")
 include("network.jl")
 include("Node.jl")
-include("MerkleTree.jl")
+# include("MerkleTree.jl")
 include("murmur3.jl")
 
 end # module

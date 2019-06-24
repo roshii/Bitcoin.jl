@@ -11,7 +11,7 @@ function h160_2_address(h160::Vector{UInt8}, testnet::Bool=false, type::String="
 end
 
 """
-    adress(P::ECC.S256Point, compressed::Bool, testnet::Bool) -> String
+    point2address(P::ECC.S256Point, compressed::Bool, testnet::Bool) -> String
 
 Returns the Base58 Bitcoin address given an S256Point
 Compressed is set to true if not provided.
@@ -45,4 +45,4 @@ function wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false)
     end
 end
 
-@deprecate address(P::T, compressed::Bool=true, testnet::Bool=false) point2address(P::T, compressed::Bool=true, testnet::Bool=false, type::String="P2PKH")
+@deprecate address(P::T, compressed::Bool, testnet::Bool)  where {T<:S256Point} point2address(P::T, compressed::Bool, testnet::Bool, type::String)  where {T<:S256Point}

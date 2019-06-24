@@ -27,7 +27,6 @@ include("Block.jl")
 include("BloomFilter.jl")
 include("network.jl")
 include("Node.jl")
-# include("MerkleTree.jl")
 include("murmur3.jl")
 
 end # module

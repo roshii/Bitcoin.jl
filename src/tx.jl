@@ -1,37 +1,5 @@
-using HTTP
-import Base: hash, parse, fetch
+import Base: hash, parse
 import ECC.verify
-
-function geturl(testnet::Bool=false)
-    string("http://", NODE_URL, ":", DEFAULT["rpcport"][testnet])
-end
-
-"""
-    fetch(tx_id::String, testnet::Bool=false) -> Tx
-
-Returns the bitcoin transaction given its ID as an hexadecimal string.
-"""
-function fetch(tx_id::String, testnet::Bool=false)
-    url = string(geturl(testnet), "/rest/tx/", tx_id, ".bin")
-    response = HTTP.request("GET", url)
-    try
-        response.status == 200
-    catch
-        error("Unexpected status: ", response.status)
-    end
-    raw = response.body
-    tx = parse(IOBuffer(raw), testnet)
-    if tx.segwit
-        computed = id(tx)
-    else
-        computed = bytes2hex(reverse!(copy(hash256(raw))))
-    end
-    if id(tx) != tx_id
-        error("not the same id : ", id(tx),
-            "\n             vs : ", tx_id)
-    end
-    return tx
-end
 
 abstract type TxComponent end
 
@@ -532,4 +500,3 @@ end
 @deprecate txin_scriptpubkey(txin::TxIn, testnet::Bool) script_pubkey(txin::TxIn, testnet::Bool)
 @deprecate txinserialize(tx::TxIn) serialize(tx::TxIn)
 @deprecate txin_fetchtx(tx::TxIn, testnet::Bool) fetch(tx::TxIn, testnet::Bool)
-@deprecate txfetch(tx_id::String, testnet::Bool) fetch(tx_id::String, testnet::Bool)

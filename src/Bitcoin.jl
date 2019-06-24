@@ -15,6 +15,7 @@ export point2address, wif, parse, serialize, id, fee, sig_hash,
        h160_2_address, script2address,
        iscoinbase, coinbase_height,
        blockparse, target, difficulty, check_pow, txoutparse
+export gettx, getheaders
 
 include("helper.jl")
 include("CompactSizeUInt.jl")
@@ -22,6 +23,7 @@ include("constants.jl")
 include("address.jl")
 include("op.jl")
 include("script.jl")
+include("rpc/rest.jl")
 include("tx.jl")
 include("Block.jl")
 include("BloomFilter.jl")

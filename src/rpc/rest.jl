@@ -63,9 +63,8 @@ end
     get_blockhashbyheight(key::Integer; url::String="", testnet::Bool=false)
     -> String
 
-Returns the bitcoin transaction given a node url with REST server enabled and
-transaction hash as an hexadecimal string.
-Uses mainnet by default
+Returns the hash of the block in the current best blockchain based on its 
+height (how many blocks it is after the Genesis Block).
 """
 function get_blockhashbyheight(key::Integer; url::String="", testnet::Bool=false)
     url *= init_url(url, testnet) *"/rest/blockhashbyheight/" * string(key) * ".bin"

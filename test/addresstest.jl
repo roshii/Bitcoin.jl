@@ -40,10 +40,10 @@
                 pk = PrivateKey(big(2)^256-big(2)^201)
                 expected = "93XfLeifX7Jx7n7ELGMAf1SUR6f9kgQs8Xke8WStMwUtrDucMzn"
                 @test wif(pk, false, true) == expected
-                pk = PrivateKey(parse(BigInt, "0dba685b4511dbd3d368e5c4358a1277de9486447af7b3604a69b8d9d8b7889d", base=16))
+                pk = PrivateKey(big"0x0dba685b4511dbd3d368e5c4358a1277de9486447af7b3604a69b8d9d8b7889d")
                 expected = "5HvLFPDVgFZRK9cd4C5jcWki5Skz6fmKqi1GQJf5ZoMofid2Dty"
                 @test wif(pk, false, false) == expected
-                pk = PrivateKey(parse(BigInt, "1cca23de92fd1862fb5b76e5f4f50eb082165e5191e116c18ed1a6b24be6a53f", base=16))
+                pk = PrivateKey(big"0x1cca23de92fd1862fb5b76e5f4f50eb082165e5191e116c18ed1a6b24be6a53f")
                 expected = "cNYfWuhDpbNM1JWc3c6JTrtrFVxU4AGhUKgw5f93NP2QaBqmxKkg"
                 @test wif(pk, true, true) == expected
         end

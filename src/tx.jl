@@ -47,8 +47,8 @@ function serialize(tx::TxIn)
     return result
 end
 
-function fetch(tx::TxIn, testnet::Bool=false)
-    return fetch(bytes2hex(tx.prev_tx), testnet)
+function get_tx(tx::TxIn; testnet::Bool=false)
+    return get_tx(bytes2hex(tx.prev_tx), testnet=testnet)
 end
 
 """
@@ -58,7 +58,7 @@ Get the outpoint value by looking up the tx hash
 Returns the amount in satoshi
 """
 function value(txin::TxIn, testnet::Bool=false)
-    tx = fetch(txin, testnet)
+    tx = get_tx(txin, testnet=testnet)
     return tx.tx_outs[txin.prev_index + 1].amount
 end
 
@@ -70,7 +70,7 @@ Get the scriptPubKey by looking up the tx hash
 Returns a Script object
 """
 function script_pubkey(txin::TxIn, testnet::Bool=false)
-    tx = fetch(txin, testnet)
+    tx = get_tx(txin, testnet=testnet)
     return tx.tx_outs[txin.prev_index + 1].script_pubkey
 end
 

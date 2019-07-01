@@ -59,5 +59,24 @@ function get_headers(key::String; amount::Integer=1, url::String="", testnet::Bo
     return headers
 end
 
+"""
+    get_blockhashbyheight(key::Integer; url::String="", testnet::Bool=false)
+    -> String
+
+Returns the bitcoin transaction given a node url with REST server enabled and
+transaction hash as an hexadecimal string.
+Uses mainnet by default
+"""
+function get_blockhashbyheight(key::Integer; url::String="", testnet::Bool=false)
+    url *= init_url(url, testnet) *"/rest/blockhashbyheight/" * string(key) * ".bin"
+    response = HTTP.request("GET", url)
+    try
+        response.status == 200
+    catch
+        error("Unexpected status: ", response.status)
+    end
+    return bytes2hex(reverse(response.body))
+end
+
 @deprecate txfetch(tx_id::String, testnet::Bool=false) fetch(tx_id::String, testnet::Bool)
 @deprecate fetch(tx_id::String, testnet::Bool=false) get_tx(tx_id, testnet=testnet)

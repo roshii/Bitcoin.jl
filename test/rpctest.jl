@@ -10,4 +10,9 @@
         @test length(headers) == 2
         @test typeof(headers[1]) == BlockHeader
     end
+    @testset "GET BlockHashByHeight" begin
+        want = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+        blockhash = get_blockhashbyheight(0)
+        @test blockhash == want
+    end
 end

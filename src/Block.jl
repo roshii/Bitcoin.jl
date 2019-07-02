@@ -151,3 +151,5 @@ struct Block <: AbstractBlock
     tx_counter
     tx::Vector{UInt8}
 end
+
+# TODO Add Block serialization function  

@@ -1,5 +1,4 @@
 import Base: hash, parse
-import ECC.verify
 
 abstract type TxComponent end
 
@@ -22,14 +21,14 @@ end
 Takes a byte stream and parses the tx_input at the start
 return a TxIn object
 """
-function txinparse(s::IOBuffer)
+function TxIn(s::IOBuffer)
     prev_tx = read(s, 32)
     reverse!(prev_tx)
     bytes = read(s, 4)
-    prev_index = bytes2int(bytes, true)
+    prev_index = to_int(bytes, little_endian=true)
     script_sig = scriptparse(s)
     readbytes!(s, bytes, 4)
-    sequence = bytes2int(bytes, true)
+    sequence = to_int(bytes, little_endian=true)
     return TxIn(prev_tx, prev_index, script_sig, sequence)
 end
 
@@ -41,9 +40,9 @@ Returns the byte serialization of the transaction input
 function serialize(tx::TxIn)
     result = copy(tx.prev_tx)
     reverse!(result)
-    append!(result, int2bytes(tx.prev_index, 4, true))
+    append!(result, bytes(tx.prev_index, len=4, little_endian=true))
     append!(result, serialize(tx.script_sig))
-    append!(result, int2bytes(tx.sequence, 4, true))
+    append!(result, bytes(tx.sequence, len=4, little_endian=true))
     return result
 end
 
@@ -93,7 +92,7 @@ return a TxOut object
 function txoutparse(s::Base.GenericIOBuffer)
     bytes = UInt8[]
     readbytes!(s, bytes, 8)
-    amount = bytes2int(bytes, true)
+    amount = to_int(bytes, little_endian=true)
     script_pubkey = scriptparse(s)
     return TxOut(amount, script_pubkey)
 end
@@ -104,7 +103,7 @@ end
 Returns the byte serialization of the transaction output
 """
 function serialize(tx::TxOut)
-    result = int2bytes(tx.amount, 8, true)
+    result = bytes(tx.amount, len=8, little_endian=true)
     append!(result, serialize(tx.script_pubkey))
     return result
 end
@@ -138,7 +137,7 @@ function parse_legacy(s::Base.GenericIOBuffer, testnet::Bool=false)
     num_inputs = read_varint(s)
     inputs = []
     for i in 1:num_inputs
-        input = txinparse(s)
+        input = TxIn(s)
         push!(inputs, input)
     end
     num_outputs = read_varint(s)
@@ -157,7 +156,7 @@ function parse_segwit(s::Base.GenericIOBuffer, testnet::Bool=false)
     num_inputs = read_varint(s)
     inputs = []
     for _ ∈ 1:num_inputs
-        push!(inputs, txinparse(s))
+        push!(inputs, TxIn(s))
     end
     num_outputs = read_varint(s)
     outputs = []
@@ -205,7 +204,7 @@ serialize(tx::Tx) = tx.segwit ? serialize_segwit(tx) : serialize_legacy(tx)
 
 
 function serialize_legacy(tx::Tx)
-    result = int2bytes(tx.version, 4, true)
+    result = bytes(tx.version, len=4, little_endian=true)
     append!(result, encode_varint(length(tx.tx_ins)))
     for tx_in in tx.tx_ins
         append!(result, serialize(tx_in))
@@ -214,12 +213,12 @@ function serialize_legacy(tx::Tx)
     for tx_out in tx.tx_outs
         append!(result, serialize(tx_out))
     end
-    append!(result, int2bytes(tx.locktime, 4, true))
+    append!(result, bytes(tx.locktime, len=4, little_endian=true))
     return result
 end
 
 function serialize_segwit(tx::Tx)
-    result = int2bytes(tx.version, 4, true)
+    result = bytes(tx.version, len=4, little_endian=true)
     append!(result, [0x00, tx.flag])
     append!(result, encode_varint(length(tx.tx_ins)))
     for tx_in in tx.tx_ins
@@ -238,7 +237,7 @@ function serialize_segwit(tx::Tx)
             append!(result, item)
         end
     end
-    append!(result, int2bytes(tx.locktime, 4, true))
+    append!(result, bytes(tx.locktime, len=4, little_endian=true))
     return result
 end
 
@@ -419,7 +418,7 @@ function verify(tx::Tx, input_index)
     end
     combined_script = Script(copy(tx_in.script_sig.instructions))
     append!(combined_script.instructions, script_pubkey(tx_in, tx.testnet).instructions)
-    return evaluate(combined_script, bytes2int(z), witness)
+    return evaluate(combined_script, to_int(z), witness)
 end
 
 
@@ -443,19 +442,19 @@ end
 """
 Signs the input using the private key
 """
-function txsigninput(tx::Tx, input_index::Integer, private_key::PrivateKey)
-    z = bytes2int(sig_hash(tx, input_index))
-    sig = pksign(private_key, z)
-    txpushsignature(tx, input_index, z, sig, private_key.𝑃)
+function txsigninput(tx::Tx, input_index::Integer, keypair::KeyPair)
+    z = to_int(sig_hash(tx, input_index))
+    sig = ECDSA.sign(keypair, z)
+    txpushsignature(tx, input_index, z, sig, keypair.𝑄)
 end
 
 """
 Append Signature to the Script Pubkey of TxIn at index
 """
-function txpushsignature(tx::Tx, input_index::Integer, z::Integer, sig::Signature, pubkey::S256Point)
-    der = sig2der(sig)
-    append!(der, int2bytes(SIGHASH_ALL))
-    sec = point2sec(pubkey)
+function txpushsignature(tx::Tx, input_index::Integer, z::Integer, sig::ECDSA.Signature, pubkey::Secp256k1.Point)
+    der = serialize(sig)
+    append!(der, bytes(SIGHASH_ALL))
+    sec = serialize(pubkey)
     script_sig = Script([der, sec])
     tx.tx_ins[input_index + 1].script_sig = script_sig
     return verify(tx, input_index)
@@ -484,7 +483,7 @@ function coinbase_height(tx::Tx)
         return nothing
     end
     height_bytes = tx.tx_ins[1].script_sig.instructions[1]
-    return bytes2int(height_bytes, true)
+    return to_int(height_bytes, little_endian=true)
 end
 
 @deprecate txparse(s::IOBuffer, testnet::Bool) parse(s::IOBuffer, testnet::Bool)::Tx
@@ -500,3 +499,4 @@ end
 @deprecate txin_scriptpubkey(txin::TxIn, testnet::Bool) script_pubkey(txin::TxIn, testnet::Bool)
 @deprecate txinserialize(tx::TxIn) serialize(tx::TxIn)
 @deprecate txin_fetchtx(tx::TxIn, testnet::Bool) fetch(tx::TxIn, testnet::Bool)
+@deprecate txinparse(s::IOBuffer) TxIn(s::IOBuffer)

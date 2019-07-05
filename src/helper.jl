@@ -36,11 +36,11 @@ Encodes an integer as a varint
     if n < 0xfd
         return [UInt8(n)]
     elseif n < 0x10000
-        return prepend!(int2bytes(n, 2, true), [0xfd])
+        return prepend!(bytes(n, len=2, little_endian=true), [0xfd])
     elseif n < 0x100000000
-        return prepend!(int2bytes(n, 4, true), [0xfe])
+        return prepend!(bytes(n, len=4, little_endian=true), [0xfe])
     elseif n < 0x10000000000000000
-        return prepend!(int2bytes(n, 8, true), [0xff])
+        return prepend!(bytes(n, len=8, little_endian=true), [0xff])
     else
         error("Integer, ", n, " is too large")
     end

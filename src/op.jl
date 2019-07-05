@@ -755,9 +755,9 @@ function op_checksig(stack::StackType, z::Integer)
     end
     sec_pubkey = pop!(stack)
     der_signature = pop!(stack)[1:end-1]
-    point = sec2point(sec_pubkey)
-    sig = der2sig(der_signature)
-    if verify(point, z, sig)
+    point = Secp256k1.Point(sec_pubkey)
+    sig = Signature(der_signature)
+    if ECDSA.verify(point, z, sig)
         push!(stack, encode_num(1))
     else
         push!(stack, encode_num(0))
@@ -801,13 +801,13 @@ function op_checkmultisig(stack::StackType, z::Integer)
     # OP_CHECKMULTISIG bug
     pop!(stack)
     try
-        points = S256Point[]
+        points = Secp256k1.Point[]
         for sec in sec_pubkeys
-            push!(points, sec2point(sec))
+            push!(points, Secp256k1.Point(sec))
         end
         sigs = Signature[]
         for der in der_signatures
-            push!(sigs, der2sig(der))
+            push!(sigs, Signature(der))
         end
         for sig in sigs
             if length(points) == 0
@@ -816,7 +816,7 @@ function op_checkmultisig(stack::StackType, z::Integer)
             end
             while length(points) > 0
                 point = popfirst!(points)
-                if verify(point, z, sig)
+                if ECDSA.verify(point, z, sig)
                     break
                 end
                 println("not valid sig")

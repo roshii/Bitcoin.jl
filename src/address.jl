@@ -11,27 +11,27 @@ function h160_2_address(h160::Vector{UInt8}, testnet::Bool=false, type::String="
 end
 
 """
-    point2address(P::ECC.S256Point, compressed::Bool, testnet::Bool) -> String
+    point2address(P::Secp256k1.Point, compressed::Bool, testnet::Bool) -> String
 
-Returns the Base58 Bitcoin address given an S256Point
+Returns the Base58 Bitcoin address given an Secp256k1.Point
 Compressed is set to true if not provided.
 Testnet is set to false by default.
 """
-function point2address(P::T, compressed::Bool=true, testnet::Bool=false, type::String="P2PKH") where {T<:S256Point}
-    s = point2sec(P, compressed)
+function point2address(P::T, compressed::Bool=true, testnet::Bool=false, type::String="P2PKH") where {T<:Secp256k1.Point}
+    s = serialize(P, compressed=compressed)
     h160 = ripemd160(sha256(s))
     return h160_2_address(h160, testnet, type)
 end
 
 """
-    wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false) -> String
+    wif(kp::KeyPair, compressed::Bool=true, testnet::Bool=false) -> String
 
-Returns a PrivateKey in Wallet Import Format
+Returns a KeyPair in Wallet Import Format
 Compressed is set to true if not provided.
 Testnet is set to false by default.
 """
-function wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false)
-    secret_bytes = int2bytes(pk.𝑒)
+function wif(kp::KeyPair, compressed::Bool=true, testnet::Bool=false)
+    secret_bytes = bytes(kp.𝑑)
     if testnet
         prefix = 0xef
     else
@@ -45,4 +45,4 @@ function wif(pk::PrivateKey, compressed::Bool=true, testnet::Bool=false)
     end
 end
 
-@deprecate address(P::T, compressed::Bool, testnet::Bool)  where {T<:S256Point} point2address(P::T, compressed::Bool, testnet::Bool, type::String)  where {T<:S256Point}
+@deprecate address(P::T, compressed::Bool, testnet::Bool)  where {T<:Secp256k1.Point} point2address(P::T, compressed::Bool, testnet::Bool, type::String)  where {T<:Secp256k1.Point}

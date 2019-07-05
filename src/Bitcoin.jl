@@ -1,8 +1,8 @@
 module Bitcoin
 
-using ECC, Base58, MerkleTrees
-using SHA: sha1, sha256
-using Ripemd: ripemd160
+using BitConverter, Secp256k1, MerkleTrees
+import Secp256k1: serialize
+using SHA, Ripemd, Base58
 using Dates: unix2datetime, datetime2unix, now
 using Sockets
 import Base.show
@@ -30,5 +30,6 @@ include("BloomFilter.jl")
 include("network.jl")
 include("Node.jl")
 include("murmur3.jl")
+
 
 end # module

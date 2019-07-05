@@ -3,19 +3,19 @@
                 secret = 888^3
                 mainnet_address = "148dY81A9BmdpMhvYEVznrM45kWN32vSCN"
                 testnet_address = "mieaqB68xDCtbUBYFoUNcmZNwk74xcBfTP"
-                point = secret * ECC.G
+                point = secret * Secp256k1.G
                 @test point2address(point, true, false) == mainnet_address
                 @test point2address(point, true, true) == testnet_address
                 secret = 321
                 mainnet_address = "1S6g2xBJSED7Qr9CYZib5f4PYVhHZiVfj"
                 testnet_address = "mfx3y63A7TfTtXKkv7Y6QzsPFY6QCBCXiP"
-                point = secret * ECC.G
+                point = secret * Secp256k1.G
                 @test point2address(point, false, false) == mainnet_address
                 @test point2address(point, false, true) == testnet_address
                 secret = 4242424242
                 mainnet_address = "1226JSptcStqn4Yq9aAmNXdwdc2ixuH9nb"
                 testnet_address = "mgY3bVusRUL6ZB2Ss999CSrGVbdRwVpM8s"
-                point = secret * ECC.G
+                point = secret * Secp256k1.G
                 @test point2address(point, false, false) == mainnet_address
                 @test point2address(point, false, true) == testnet_address
                 @testset "P2PKH" begin
@@ -34,17 +34,17 @@
                 end
         end
         @testset "WIF" begin
-                pk = PrivateKey(big(2)^256-big(2)^199)
+                kp = KeyPair{:ECDSA}(big(2)^256-big(2)^199)
                 expected = "L5oLkpV3aqBJ4BgssVAsax1iRa77G5CVYnv9adQ6Z87te7TyUdSC"
-                @test wif(pk, true, false) == expected
-                pk = PrivateKey(big(2)^256-big(2)^201)
+                @test wif(kp, true, false) == expected
+                kp = KeyPair{:ECDSA}(big(2)^256-big(2)^201)
                 expected = "93XfLeifX7Jx7n7ELGMAf1SUR6f9kgQs8Xke8WStMwUtrDucMzn"
-                @test wif(pk, false, true) == expected
-                pk = PrivateKey(big"0x0dba685b4511dbd3d368e5c4358a1277de9486447af7b3604a69b8d9d8b7889d")
+                @test wif(kp, false, true) == expected
+                kp = KeyPair{:ECDSA}(big"0x0dba685b4511dbd3d368e5c4358a1277de9486447af7b3604a69b8d9d8b7889d")
                 expected = "5HvLFPDVgFZRK9cd4C5jcWki5Skz6fmKqi1GQJf5ZoMofid2Dty"
-                @test wif(pk, false, false) == expected
-                pk = PrivateKey(big"0x1cca23de92fd1862fb5b76e5f4f50eb082165e5191e116c18ed1a6b24be6a53f")
+                @test wif(kp, false, false) == expected
+                kp = KeyPair{:ECDSA}(big"0x1cca23de92fd1862fb5b76e5f4f50eb082165e5191e116c18ed1a6b24be6a53f")
                 expected = "cNYfWuhDpbNM1JWc3c6JTrtrFVxU4AGhUKgw5f93NP2QaBqmxKkg"
-                @test wif(pk, true, true) == expected
+                @test wif(kp, true, true) == expected
         end
 end

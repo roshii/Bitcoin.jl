@@ -1,3 +1,4 @@
+using Secp256k1
 using Base58: base58checkdecode
 
 @testset "Transaction" begin
@@ -113,7 +114,7 @@ using Base58: base58checkdecode
         end
     end
     @testset "Sign Input" begin
-        private_key = PrivateKey(8675309)
+        keypair = KeyPair{:ECDSA}(8675309)
         tx_ins = TxIn[]
         prev_tx = hex2bytes("0025bc3c0fa8b7eb55b9437fdbd016870d18e0df0ace7bc9864efc38414147c8")
         push!(tx_ins, TxIn(prev_tx, 0))
@@ -123,7 +124,7 @@ using Base58: base58checkdecode
         h160 = base58checkdecode(b"mnrVtF8DWjMu839VW3rBfgYaAfKk8983Xf")[2:end]
         push!(tx_outs, TxOut(Int(0.1 * 100000000), Bitcoin.p2pkh_script(h160)))
         tx = Tx(1, tx_ins, tx_outs, 0, true)
-        @test txsigninput(tx, 0, private_key)
+        @test txsigninput(tx, 0, keypair)
     end
     @testset "Is CoinbaseTx" begin
         raw_tx = hex2bytes("01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff5e03d71b07254d696e656420627920416e74506f6f6c20626a31312f4542312f4144362f43205914293101fabe6d6d678e2c8c34afc36896e7d9402824ed38e856676ee94bfdb0c6c4bcd8b2e5666a0400000000000000c7270000a5e00e00ffffffff01faf20b58000000001976a914338c84849423992471bffb1a54a8d9b1d69dc28a88ac00000000")

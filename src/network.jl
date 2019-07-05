@@ -91,8 +91,8 @@ function serialize(envelope::NetworkEnvelope)
     result = Vector(reinterpret(UInt8, [htol(envelope.magic)]))
     append!(result, UInt8.(collect(envelope.command)))
     append!(result, fill(0x00, (12 - length(envelope.command))))
-    append!(result, int2bytes(length(envelope.payload), 4, true))
-    append!(result, int2bytes(envelope.checksum, 4, true))
+    append!(result, bytes(length(envelope.payload), len=4, little_endian=true))
+    append!(result, bytes(envelope.checksum, len=4, little_endian=true))
     append!(result, envelope.payload)
 end
 
@@ -290,7 +290,7 @@ Serialize this message to send over the network
     end block is also in little-endian
 """
 function serialize(getheaders::GetHeadersMessage)
-    result = int2bytes(getheaders.version, 4, true)
+    result = bytes(getheaders.version, len=4, little_endian=true)
     append!(result, encode_varint(getheaders.num_hashes))
     append!(result, reverse!(copy(getheaders.start_block)))
     append!(result, reverse!(copy(getheaders.end_block)))
@@ -345,7 +345,7 @@ end
 function serialize(x::GetDataMessage)
     result = encode_varint(length(x.data))
     for e in x.data
-        append!(result, int2bytes(e[1], 4, true))
+        append!(result, bytes(e[1], len=4, little_endian=true))
         append!(result, reverse!(copy(e[2])))
     end
     return result

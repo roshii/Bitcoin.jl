@@ -127,7 +127,7 @@ Returns whether this block satisfies proof of work
 """
 function check_pow(block::BlockHeader)
     block_hash = hash(block)
-    proof = bytes2int(block_hash, true)
+    proof = to_int(block_hash, little_endian=true)
     return proof < target(block)
 end
 
@@ -152,4 +152,4 @@ struct Block <: AbstractBlock
     tx::Vector{UInt8}
 end
 
-# TODO Add Block serialization function  
+# TODO Add Block serialization function
